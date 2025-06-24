@@ -71,17 +71,15 @@ Sube un archivo `.csv` con los datos de los empleados. El archivo debe tener al 
 #### 📎 Recursos de ayuda
 """)
 
-
 col1, col2 = st.columns(2)
 with col1:
     with open("plantilla_datos_empleados.csv", "rb") as f:
-st.markdown("---")
-
-
-col1, col2 = st.columns(2)
-with col1:
-    with open("plantilla_datos_empleados.csv", "rb") as f:
-st.markdown("---")
+        st.download_button(
+            label="📂 Descargar CSV de ejemplo",
+            data=f,
+            file_name="plantilla_datos_empleados.csv",
+            mime="text/csv"
+        )
 
 #!/usr/bin/env python
 # coding: utf-8
