@@ -1,1 +1,7 @@
-pandasmatplotlibseabornfpdfscikit-learnnumpydatetime
+pandas
+matplotlib
+seaborn
+fpdf
+scikit-learn
+numpy
+streamlit
