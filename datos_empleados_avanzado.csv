@@ -1,0 +1,11 @@
+Edad;Antigüedad;Desempeño;Salario;Formación_Reciente;Clima_Laboral;Departamento;Riesgo_Abandono;Horas_Extra;Tipo_Contrato;Bajas_Último_Año;Promociones_2_Años
+25;1;2;21000;0;2;Ventas;1;10;Temporal;1;0
+40;10;4;40000;0;3;RRHH;0;5;Indefinido;0;1
+30;3;2;27000;0;2;TI;1;8;Temporal;2;0
+45;15;5;50000;1;5;Producción;0;0;Indefinido;0;1
+28;2;3;24000;1;4;Marketing;1;6;Temporal;1;0
+50;20;5;48000;1;5;Producción;0;0;Indefinido;0;1
+35;5;3;30000;0;2;TI;1;12;Temporal;3;0
+42;12;4;42000;0;3;Ventas;1;7;Indefinido;1;0
+38;7;1;19000;0;1;Ventas;1;14;Temporal;2;0
+27;1;2;23000;1;2;TI;1;9;Temporal;2;0
