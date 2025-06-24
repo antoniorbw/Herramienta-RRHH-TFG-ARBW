@@ -1,5 +1,5 @@
 # ==========================================
-# Cabecera de la Interfaz (añadido automáticamente)
+# Cabecera de la Interfaz
 # ==========================================
 import streamlit as st
 from datetime import datetime
@@ -34,7 +34,7 @@ st.markdown(
     - Analiza el clima laboral por departamento.  
 
     Al finalizar, podrás descargar:  
-    - Un **informe completo (.txt)** con explicaciones detalladas.  
+    - Un **informe completo (.txt)** con explicaciones detalladas y estratégicas.  
     - Un **informe gráfico (.pdf)** con las visualizaciones clave.
     """
 )
@@ -100,11 +100,11 @@ df_sim["Prob_Abandono"] = prob_abandono_original
 
 def generate_recommendation(prob):
     if prob >= 0.6:
-        return "📌 Alto riesgo: Considerar programas de retención y revisión salarial/condiciones."
+        return "Alto riesgo: Considerar programas de retención y revisión salarial/condiciones."
     elif prob >= 0.3:
-        return "⚠️ Riesgo medio: Monitorear, ofrecer formación o mejoras en clima laboral."
+        return "Riesgo medio: Monitorear, ofrecer formación o mejoras en clima laboral."
     else:
-        return "✅ Bajo riesgo: Mantener condiciones, enfoque en desarrollo profesional."
+        return "Bajo riesgo: Mantener condiciones, enfoque en desarrollo profesional."
 df_sim['Recomendación'] = df_sim['Prob_Abandono'].apply(generate_recommendation)
 
 # --- Clustering de perfiles ---
@@ -117,10 +117,10 @@ clusters = kmeans.fit_predict(X_cluster_scaled)
 df_sim["Perfil_Empleado"] = clusters
 
 perfil_dict = {
-    0: "Potencial crecimiento",
-    1: "Bajo compromiso",
-    2: "Alto desempeño",
-    3: "En riesgo"
+    0: "Potencial Crecimiento",
+    1: "Bajo Compromiso",
+    2: "Alto Desempeño",
+    3: "En Riesgo"
 }
 df_sim["Perfil_Empleado"] = df_sim["Perfil_Empleado"].map(perfil_dict)
 
@@ -223,7 +223,7 @@ Fecha: {datetime.today().strftime('%d/%m/%Y')}
     }
     plt.figure(figsize=(6,4))
     sns.barplot(x=list(escenarios.keys()), y=list(escenarios.values()), palette="Set2")
-    plt.title("Comparativa de riesgo medio por política")
+    plt.title("Comparativa de políticas estratégicas")
     plt.ylabel("Probabilidad media de abandono")
     plt.tight_layout()
     sim_path = "temp_img/simulacion.png"
@@ -254,31 +254,38 @@ Fecha: {datetime.today().strftime('%d/%m/%Y')}
     return pdf.output(dest='S').encode('latin-1')
 
 # ==========================================
-# Generación de informe en TXT
+# Generación de informe en TXT (VERSIÓN EXTENDIDA)
 # ==========================================
 def generate_txt_report():
     report_content = []
-    report_content.append("==========================================================")
-    report_content.append("INFORME ESTRATÉGICO DE RECURSOS HUMANOS")
-    report_content.append("==========================================================")
-    report_content.append(f"Fecha de generación: {datetime.today().strftime('%d/%m/%Y')}\n")
     
-    # --- 1. Riesgo de Abandono ---
-    report_content.append("--- 1. ANÁLISIS DE RIESGO DE ABANDONO ---")
+    # --- Encabezado ---
+    report_content.append("==========================================================")
+    report_content.append("    INFORME ESTRATÉGICO DE ANÁLISIS DE PLANTILLA (IA RRHH)")
+    report_content.append("==========================================================")
+    report_content.append(f"\nFecha de generación: {datetime.today().strftime('%d/%m/%Y')}\n")
+    
+    # --- 1. Introducción y Metodología ---
+    report_content.append("--- 1. INTRODUCCIÓN Y METODOLOGÍA ---")
+    report_content.append("\nEste informe ha sido generado mediante un sistema de Inteligencia Artificial para el análisis estratégico de Recursos Humanos.")
+    report_content.append("El objetivo es proporcionar una visión clara y basada en datos sobre el estado de la plantilla, identificando riesgos, oportunidades y perfiles clave.")
+    report_content.append("El análisis se basa en un modelo de Regresión Logística para predecir el riesgo de abandono y un algoritmo de Clustering (K-Means) para la segmentación de perfiles.")
+
+    # --- 2. Análisis General de Riesgo de Abandono ---
+    report_content.append("\n\n--- 2. ANÁLISIS GENERAL DE RIESGO DE ABANDONO ---")
+    report_content.append("\nSe ha estimado la probabilidad de abandono para cada empleado. Una probabilidad alta sugiere una necesidad de intervención.")
     high_risk = (df_sim["Prob_Abandono"] >= 0.6).sum()
     medium_risk = ((df_sim["Prob_Abandono"] >= 0.3) & (df_sim["Prob_Abandono"] < 0.6)).sum()
     low_risk = (df_sim["Prob_Abandono"] < 0.3).sum()
-    report_content.append(f"\nResumen de niveles de riesgo:")
-    report_content.append(f"  - ✅ Riesgo bajo (<30%): {low_risk} empleados")
-    report_content.append(f"  - ⚠️ Riesgo medio (30-60%): {medium_risk} empleados")
-    report_content.append(f"  - 📌 Riesgo alto (>60%): {high_risk} empleados\n")
-    report_content.append("Recomendaciones para empleados con alto riesgo:")
-    top_empleados = df_sim.sort_values("Prob_Abandono", ascending=False).head(5)
-    for i, row in top_empleados.iterrows():
-        report_content.append(f"  - Empleado (ID {i}): Probabilidad del {row['Prob_Abandono']:.1%}. Recomendación: {row['Recomendación']}")
-    
-    # --- 2. Simulación de Políticas ---
-    report_content.append("\n--- 2. SIMULACIÓN DE POLÍTICAS ESTRATÉGICAS ---")
+    report_content.append(f"\nResumen de Niveles de Riesgo:")
+    report_content.append(f"  - Empleados con Riesgo Bajo (<30%): {low_risk}")
+    report_content.append(f"  - Empleados con Riesgo Medio (30-60%): {medium_risk}")
+    report_content.append(f"  - Empleados con Riesgo Alto (>60%): {high_risk}")
+    report_content.append("\nRecomendación General: Focalizar los esfuerzos de retención en el grupo de alto riesgo, investigando las causas subyacentes (clima, salario, desarrollo).")
+
+    # --- 3. Simulación de Políticas Estratégicas ---
+    report_content.append("\n\n--- 3. SIMULACIÓN DE POLÍTICAS ESTRATÉGICAS ---")
+    report_content.append("\nSe ha simulado el impacto de diferentes políticas de RRHH sobre el riesgo medio de abandono de la plantilla.")
     form = df_sim.copy()
     sal = df_sim.copy()
     both = df_sim.copy()
@@ -287,26 +294,63 @@ def generate_txt_report():
     both["Prob_Abandono"] *= 0.8
     escenarios = {
         'Original': df_sim["Prob_Abandono"].mean(),
-        'Formación': form["Prob_Abandono"].mean(),
-        'Salario': sal["Prob_Abandono"].mean(),
-        'Combinada': both["Prob_Abandono"].mean()
+        'Mejora de Formación (-10%)': form["Prob_Abandono"].mean(),
+        'Mejora Salarial (-15%)': sal["Prob_Abandono"].mean(),
+        'Política Combinada (-20%)': both["Prob_Abandono"].mean()
     }
-    report_content.append("\nImpacto de las políticas en el riesgo medio de abandono:")
+    report_content.append("\nImpacto Estimado en el Riesgo Medio de Abandono:")
     for k, v in escenarios.items():
-        report_content.append(f"  - {k}: {v:.2%}")
-    report_content.append("\nConclusión: La política combinada es la más efectiva para reducir el riesgo general.")
+        report_content.append(f"  - Escenario '{k}': Riesgo medio del {v:.2%}")
+    report_content.append("\nConclusión Estratégica: Una política combinada que incluya tanto mejoras salariales como oportunidades de formación es la estrategia más efectiva para reducir la rotación a nivel global.")
 
-    # --- 3. Clustering de Perfiles ---
-    report_content.append("\n--- 3. PERFILES DE EMPLEADOS (CLUSTERING) ---")
-    report_content.append("\nSe han identificado 4 perfiles de empleados basados en sus características:")
+    # --- 4. Perfiles de Empleados (Clustering) ---
+    report_content.append("\n\n--- 4. ANÁLISIS DE PERFILES DE EMPLEADOS (CLUSTERING) ---")
+    report_content.append("\nSe han agrupado los empleados en 4 perfiles distintos según sus características laborales y personales para facilitar la toma de decisiones personalizadas.")
     for perfil in sorted(df_sim["Perfil_Empleado"].unique()):
         grupo = df_sim[df_sim["Perfil_Empleado"] == perfil]
-        report_content.append(f"\n  - Perfil '{perfil}': ({len(grupo)} empleados)")
-        report_content.append(f"    - Riesgo de abandono medio: {grupo['Prob_Abandono'].mean():.1%}")
-        report_content.append(f"    - Clima laboral medio: {grupo['Clima_Laboral'].mean():.1f}/5")
-        report_content.append(f"    - Antigüedad media: {grupo['Antigüedad'].mean():.1f} años")
+        report_content.append(f"\n  >> Perfil: '{perfil}' ({len(grupo)} empleados)")
+        report_content.append(f"     - Riesgo de Abandono Medio: {grupo['Prob_Abandono'].mean():.1%}")
+        report_content.append(f"     - Clima Laboral Medio: {grupo['Clima_Laboral'].mean():.1f}/5")
+        report_content.append(f"     - Antigüedad Media: {grupo['Antigüedad'].mean():.1f} años")
+        report_content.append(f"     - Desempeño Medio: {grupo['Desempeño'].mean():.1f}/5")
+        report_content.append(f"     - Recomendación Clave: {grupo['Recomendación'].mode()[0]}")
 
-    report_content.append("\n\n--- FIN DEL INFORME ---")
+    # --- 5. Análisis del Clima Laboral por Departamento ---
+    report_content.append("\n\n--- 5. ANÁLISIS DEL CLIMA LABORAL POR DEPARTAMENTO ---")
+    report_content.append("\nEl clima laboral es un indicador clave de la satisfacción y el compromiso. A continuación se muestra la puntuación media por departamento.")
+    clima_dpto = df_sim.groupby('Departamento')['Clima_Laboral'].mean().sort_values(ascending=False)
+    for dpto, media in clima_dpto.items():
+        report_content.append(f"  - {dpto}: {media:.2f} / 5")
+    report_content.append("\nRecomendación: Investigar las causas del bajo clima laboral en los departamentos con las puntuaciones más bajas (e.g., Ventas, TI) mediante encuestas o entrevistas de seguimiento.")
+    
+    # --- 6. Conclusiones y Estrategias Generales ---
+    report_content.append("\n\n--- 6. CONCLUSIONES Y ESTRATEGIAS GENERALES ---")
+    report_content.append("\nA partir del análisis de datos, se extraen las siguientes conclusiones estratégicas:")
+    report_content.append("  - FOCO EN RETENCIÓN: Existe un grupo significativo de empleados con alto riesgo de abandono que requiere atención inmediata.")
+    report_content.append("  - INVERSIÓN INTELIGENTE: Las políticas combinadas (salario + formación) son las que mayor impacto tienen en la reducción de la rotación.")
+    report_content.append("  - GESTIÓN POR PERFILES: Utilizar la segmentación por clústeres para diseñar acciones de RRHH más personalizadas y efectivas.")
+    report_content.append("  - CLIMA LABORAL: Hay una notable diferencia en el clima laboral entre departamentos, lo que sugiere la necesidad de intervenciones localizadas.")
+    report_content.append("  - ACCIÓN RECOMENDADA: Implementar un plan de acción centrado en los perfiles 'En Riesgo' y 'Bajo Compromiso', y en los departamentos con peor clima laboral.")
+
+    # --- 7. Desglose Detallado por Empleado ---
+    report_content.append("\n\n--- 7. DESGLOSE DETALLADO POR EMPLEADO ---")
+    report_content.append("\nA continuación, se presenta el análisis individual para cada empleado de la plantilla.")
+    for index, row in df_sim.iterrows():
+        report_content.append("\n----------------------------------------------------------")
+        report_content.append(f"ID Empleado: {index}")
+        report_content.append(f"Departamento: {row['Departamento']} | Perfil: {row['Perfil_Empleado']}")
+        report_content.append(f"  - Datos Demográficos: Edad {row['Edad']}, Antigüedad {row['Antigüedad']} años")
+        report_content.append(f"  - Contrato y Condiciones: {row['Tipo_Contrato']}, Salario Anual {row['Salario']}€")
+        report_content.append(f"  - Indicadores de Rendimiento: Desempeño {row['Desempeño']}/5, Clima Laboral {row['Clima_Laboral']}/5")
+        report_content.append(f"  - Indicadores de Carga: Horas Extra {row['Horas_Extra']}, Bajas Último Año {row['Bajas_Último_Año']}")
+        report_content.append(f"  - Desarrollo: Formación Reciente {'Sí' if row['Formación_Reciente'] == 1 else 'No'}, Promociones 2 Años: {row['Promociones_2_Años']}")
+        report_content.append(f"  - >> RIESGO DE ABANDONO ESTIMADO: {row['Prob_Abandono']:.1%}")
+        report_content.append(f"  - >> RECOMENDACIÓN ESTRATÉGICA: {row['Recomendación']}")
+    
+    report_content.append("\n\n==========================================================")
+    report_content.append("                  FIN DEL INFORME")
+    report_content.append("==========================================================")
+    
     return "\n".join(report_content)
 
 
@@ -318,6 +362,21 @@ st.subheader("Distribución del Riesgo de Abandono")
 fig, ax = plt.subplots()
 sns.histplot(df_sim['Prob_Abandono'], bins=10, kde=True, ax=ax)
 st.pyplot(fig)
+
+st.subheader("Simulación de Políticas Estratégicas")
+form_sim = df_sim.copy(); form_sim["Prob_Abandono"] *= 0.9
+sal_sim = df_sim.copy(); sal_sim["Prob_Abandono"] *= 0.85
+both_sim = df_sim.copy(); both_sim["Prob_Abandono"] *= 0.8
+escenarios_sim = {
+    'Original': df_sim["Prob_Abandono"].mean(),
+    'Formación': form_sim["Prob_Abandono"].mean(),
+    'Salario': sal_sim["Prob_Abandono"].mean(),
+    'Combinada': both_sim["Prob_Abandono"].mean()
+}
+fig_sim, ax_sim = plt.subplots()
+sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
+ax_sim.set_ylabel("Probabilidad media de abandono")
+st.pyplot(fig_sim)
 
 st.subheader("Riesgo de Abandono por Departamento")
 fig2, ax2 = plt.subplots()
@@ -340,9 +399,9 @@ st.header("📥 Descargar Informes")
 # Botón de descarga para el informe TXT
 txt_report_data = generate_txt_report()
 st.download_button(
-    label="📄 Descargar Informe Completo (.txt)",
+    label="📄 Descargar Informe Estratégico Completo (.txt)",
     data=txt_report_data,
-    file_name=f"informe_estrategico_{datetime.today().strftime('%Y%m%d')}.txt",
+    file_name=f"informe_estrategico_completo_{datetime.today().strftime('%Y%m%d')}.txt",
     mime="text/plain"
 )
 
