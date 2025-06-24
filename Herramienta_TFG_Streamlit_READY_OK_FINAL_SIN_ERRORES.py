@@ -111,14 +111,14 @@ from sklearn.cluster import KMeans
 # In[2]:
 
 
-# 📁 Carga de datos
-try:
-    uploaded = files.upload()
-    df = pd.read_csv(next(iter(uploaded)), sep=None, engine='python')
-    print("✅ Archivo cargado correctamente.")
-except:
-    print("⚠️ No se subió archivo. Usando datos de ejemplo.")
-    df = pd.read_csv('/mnt/data/datos_empleados_avanzado.csv', sep=';')
+# 📁 Carga de datos en Streamlit
+uploaded_file = st.file_uploader("📤 Sube tu archivo CSV con datos de empleados", type=["csv"])
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file, sep=";")
+    st.success("✅ Archivo cargado correctamente.")
+else:
+    st.warning("⚠️ Por favor, sube un archivo CSV para continuar.")
+    st.stop()
 
 
 # > 📘 **Explicación de este paso**
