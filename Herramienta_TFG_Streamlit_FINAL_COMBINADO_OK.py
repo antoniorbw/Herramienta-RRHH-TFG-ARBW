@@ -37,7 +37,6 @@ def create_template_csv():
         'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal']
     }
     df_template = pd.DataFrame(template_data)
-    # Usamos punto y coma como separador
     return df_template.to_csv(index=False, sep=';').encode('utf-8')
 
 csv_template = create_template_csv()
@@ -175,23 +174,21 @@ st.header("3. Análisis por Departamento")
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("##### Departamentos con Más Riesgo")
-    riesgo_dpto = df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=False)
+    riesgo_dpto = df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=True)
     fig, ax = plt.subplots()
-    riesgo_dpto.plot(kind='bar', ax=ax, color='salmon')
+    riesgo_dpto.plot(kind='barh', ax=ax, color='salmon')
     ax.set_title("Riesgo de Abandono Medio por Departamento")
-    ax.set_ylabel("Probabilidad Media de Abandono")
-    ax.tick_params(axis='x', rotation=45)
+    ax.set_xlabel("Probabilidad Media de Abandono")
     st.pyplot(fig)
     st.caption("🔍 **Interpretación:** Esta gráfica ordena los departamentos del más al menos propenso a la rotación. Es útil para identificar dónde se deben centrar los esfuerzos de retención.")
 
 with col2:
     st.markdown("##### Clima Laboral por Departamento")
-    clima_dpto = df_sim.groupby('Departamento')['Clima_Laboral'].mean().sort_values(ascending=False)
+    clima_dpto = df_sim.groupby('Departamento')['Clima_Laboral'].mean().sort_values(ascending=True)
     fig, ax = plt.subplots()
-    clima_dpto.plot(kind='bar', ax=ax, color='c')
+    clima_dpto.plot(kind='barh', ax=ax, color='c')
     ax.set_title("Clima Laboral Medio por Departamento")
-    ax.set_ylabel("Puntuación Media (sobre 5)")
-    ax.tick_params(axis='x', rotation=45)
+    ax.set_xlabel("Puntuación Media (sobre 5)")
     st.pyplot(fig)
     st.caption("🔍 **Interpretación:** Compara la satisfacción y el ambiente de trabajo entre departamentos. Un bajo clima laboral suele estar correlacionado con un alto riesgo de abandono.")
 
@@ -258,46 +255,85 @@ if selected_id is not None:
 
 
 # ==============================================================================
-# SECCIÓN DE DESCARGAS (PDF) EN LA BARRA LATERAL
+# LÓGICA DE DESCARGA DE INFORMES
 # ==============================================================================
-st.sidebar.markdown("---")
-st.sidebar.header("📄 Descargar Informe PDF")
 
-def generate_pdf_report(_df_sim, _escenarios_sim, _df_pca):
-    os.makedirs("temp_img", exist_ok=True)
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Informe Gráfico de Análisis de Plantilla", ln=True, align="C")
+# --- Función para generar informe TXT ---
+def generate_txt_report(_df_sim):
+    report_content = []
+    report_content.append("==========================================================")
+    report_content.append("    INFORME ESTRATÉGICO DE ANÁLISIS DE PLANTILLA (IA RRHH)")
+    report_content.append("==========================================================")
+    report_content.append(f"\nFecha de generación: {datetime.today().strftime('%d/%m/%Y')}\n")
+    report_content.append("--- 1. ANÁLISIS GENERAL DE RIESGO DE ABANDONO ---")
+    report_content.append(f"Resumen: Riesgo Alto (>60%): {high_risk} empleados | Riesgo Medio (30-60%): {medium_risk} | Riesgo Bajo (<30%): {low_risk}\n")
+    report_content.append("\n--- 2. ANÁLISIS DE PERFILES DE EMPLEADOS (CLUSTERING) ---")
+    for perfil in sorted(_df_sim["Perfil_Empleado"].unique()):
+        grupo = _df_sim[_df_sim["Perfil_Empleado"] == perfil]
+        report_content.append(f"\n  >> Perfil: '{perfil}' ({len(grupo)} empleados)")
+        report_content.append(f"     - Riesgo Abandono: {grupo['Prob_Abandono'].mean():.1%} | Clima Laboral: {grupo['Clima_Laboral'].mean():.1f}/5 | Antigüedad Media: {grupo['Antigüedad'].mean():.1f} años")
     
-    # Guardar figuras
-    fig1, ax1 = plt.subplots(); sns.histplot(_df_sim['Prob_Abandono'], bins=20, kde=True, ax=ax1, color="skyblue"); ax1.set_title("Distribución del Riesgo"); plt.tight_layout(); plt.savefig("temp_img/riesgo.png"); plt.close(fig1)
-    fig2, ax2 = plt.subplots(); sns.barplot(x=list(_escenarios_sim.keys()), y=list(_escenarios_sim.values()), palette="viridis", ax=ax2); ax2.set_title("Simulación de Políticas"); plt.tight_layout(); plt.savefig("temp_img/simulacion.png"); plt.close(fig2)
-    fig3, ax3 = plt.subplots(); _df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax3, color='salmon'); ax3.set_title("Riesgo por Departamento"); plt.tight_layout(); plt.savefig("temp_img/riesgo_depto.png"); plt.close(fig3)
+    report_content.append("\n\n--- 3. DESGLOSE DETALLADO POR EMPLEADO ---")
+    for index, row in _df_sim.iterrows():
+        report_content.append("\n" + "-"*50)
+        report_content.append(f"ID Empleado: {index} | Departamento: {row['Departamento']} | Perfil: {row['Perfil_Empleado']}")
+        report_content.append(f"  - RIESGO DE ABANDONO: {row['Prob_Abandono']:.1%}")
+        report_content.append(f"  - RECOMENDACIÓN: {row['Recomendación']}")
+    
+    report_content.append("\n\n==================== FIN DEL INFORME ====================")
+    return "\n".join(report_content).encode('utf-8')
+
+# --- Función para generar PDF con solo las gráficas ---
+def generate_pdf_of_graphs(_df_sim, _escenarios_sim, _df_pca):
+    os.makedirs("temp_img", exist_ok=True)
+    
+    # 1. Generar y guardar todas las figuras
+    fig1, ax1 = plt.subplots(); sns.histplot(_df_sim['Prob_Abandono'], bins=20, kde=True, ax=ax1, color="skyblue"); ax1.set_title("Distribución del Riesgo de Abandono"); plt.tight_layout(); plt.savefig("temp_img/riesgo.png"); plt.close(fig1)
+    fig2, ax2 = plt.subplots(); sns.barplot(x=list(_escenarios_sim.keys()), y=list(_escenarios_sim.values()), palette="viridis", ax=ax2); ax2.set_title("Simulación de Políticas Estratégicas"); plt.tight_layout(); plt.savefig("temp_img/simulacion.png"); plt.close(fig2)
+    fig3, ax3 = plt.subplots(); _df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax3, color='salmon'); ax3.set_title("Riesgo Medio por Departamento"); plt.tight_layout(); plt.savefig("temp_img/riesgo_depto.png"); plt.close(fig3)
     fig4, ax4 = plt.subplots(); sns.scatterplot(data=_df_pca, x="PCA1", y="PCA2", hue="Perfil", palette="Set2", s=80, ax=ax4); ax4.grid(True); ax4.set_title("Perfiles de Empleados (PCA)"); plt.tight_layout(); plt.savefig("temp_img/pca.png"); plt.close(fig4)
     
-    figures = {"Distribución del Riesgo": "temp_img/riesgo.png", "Simulación de Políticas": "temp_img/simulacion.png", "Riesgo por Departamento": "temp_img/riesgo_depto.png", "Perfiles de Empleados (PCA)": "temp_img/pca.png"}
+    # 2. Crear el PDF e insertar las imágenes
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    figures = {
+        "Distribución del Riesgo de Abandono": "temp_img/riesgo.png",
+        "Simulación de Políticas Estratégicas": "temp_img/simulacion.png",
+        "Riesgo Medio por Departamento": "temp_img/riesgo_depto.png",
+        "Visualización de Perfiles de Empleados (PCA)": "temp_img/pca.png"
+    }
 
     for title, path in figures.items():
         if os.path.exists(path):
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, title, ln=True)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, title, ln=True, align='C')
+            pdf.ln(5)
             pdf.image(path, w=180)
         
     return pdf.output(dest='S').encode('latin-1')
 
-# --- LÓGICA DE BOTONES DE DESCARGA MEJORADA ---
-if st.sidebar.button("Generar Informe en PDF"):
-    # Genera el PDF y lo guarda en el estado de la sesión
-    st.session_state.pdf_report_data = generate_pdf_report(df_sim, escenarios_sim, df_pca)
+# --- Botones de descarga en la barra lateral ---
+st.sidebar.markdown("---")
+st.sidebar.header("📄 Descargar Informes")
+
+# Botón para descargar informe TXT
+st.sidebar.download_button(
+    label="Descargar Informe General (.txt)",
+    data=generate_txt_report(df_sim),
+    file_name=f"informe_general_RRHH_{datetime.today().strftime('%Y%m%d')}.txt",
+    mime="text/plain"
+)
+
+# Lógica para generar y descargar PDF
+if st.sidebar.button("Generar Informe de Gráficas (.pdf)"):
+    st.session_state.pdf_report_data = generate_pdf_of_graphs(df_sim, escenarios_sim, df_pca)
     st.sidebar.success("¡Informe PDF generado!")
 
-# Muestra el botón de descarga SOLO si el informe ha sido generado
 if 'pdf_report_data' in st.session_state and st.session_state.pdf_report_data:
     st.sidebar.download_button(
-        label="✅ Descargar Informe PDF",
+        label="✅ Descargar Informe de Gráficas",
         data=st.session_state.pdf_report_data,
         file_name=f"informe_grafico_RRHH_{datetime.today().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
