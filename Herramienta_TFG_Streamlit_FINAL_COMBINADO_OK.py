@@ -1,4 +1,3 @@
-
 # ==========================================
 # Librerías y Configuración Inicial
 # ==========================================
@@ -116,6 +115,8 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
+    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
+
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -164,19 +165,24 @@ try:
                     st.markdown("""
                     - **¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.
                     - **¿Por qué es importante?:** Permite identificar si el riesgo de abandono es un problema aislado o generalizado.
-                    - **Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda.
+                    - **Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda de las causas a nivel organizacional.
                     """)
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
-                st.caption("Ranking de empleados que requieren atención más urgente según el modelo.")
                 for i, (index, row) in enumerate(df_filtered.nlargest(5, 'Prob_Abandono').iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                     st.markdown(f"""
                     <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
-                        <small><i>Recomendación: {row['Recomendación']}</i></small>
+                        <small><i>{row['Recomendación']}</i></small>
                     </div>
                     """, unsafe_allow_html=True)
+                with st.expander("Ver Explicación y Recomendaciones"):
+                    st.markdown("""
+                    - **¿Qué estamos viendo?:** Un ranking de los empleados que requieren atención más urgente.
+                    - **¿Por qué es importante?:** Permite priorizar las acciones de retención en los casos más críticos.
+                    - **Recomendaciones:** Abordar estos casos de forma individualizada. Usar la recomendación específica como punto de partida para la conversación.
+                    """)
             
             st.markdown("---")
             st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
@@ -212,7 +218,7 @@ try:
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
                     grupo = df_filtered[df_filtered['Perfil_Empleado'] == perfil]
                     with st.expander(f"**Perfil: '{perfil}'** ({len(grupo)} empleados)"):
-                        st.markdown(f"Riesgo medio de **{grupo['Prob_Abandono'].mean():.1%}** y clima de **{grupo['Clima_Laboral'].mean():.1f}/5**.")
+                        st.markdown(f"Este grupo se caracteriza por un **riesgo medio de {grupo['Prob_Abandono'].mean():.1%}** y un clima de **{grupo['Clima_Laboral'].mean():.1f}/5**.")
                         st.info(f"**Recomendación principal:** {grupo['Recomendación'].mode()[0]}")
             
             st.markdown("---")
@@ -221,9 +227,21 @@ try:
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
+                with st.expander("Ver Explicación y Recomendaciones"):
+                    st.markdown("""
+                    - **¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.
+                    - **¿Por qué es importante?:** Un clima bajo es un precursor directo de la insatisfacción y el abandono. Permite detectar focos de problemas de gestión o de equipo.
+                    - **Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas (mala gestión, sobrecarga, etc.) y actuar sobre ellas.
+                    """)
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
+                with st.expander("Ver Explicación y Recomendaciones"):
+                    st.markdown("""
+                    - **¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de aband మనో.
+                    - **¿Por qué es importante?:** Identifica las áreas de negocio más vulnerables a la fuga de talento, lo que puede tener un impacto operativo crítico.
+                    - **Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo. Analizar si el tipo de rol, la carga de trabajo o la gestión departamental son factores determinantes.
+                    """)
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
@@ -274,7 +292,6 @@ try:
                 for bar in bars.patches: ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
                 ax_sim.set_ylabel("Riesgo Medio de Abandono"); st.pyplot(fig_sim)
             
-            # Reincorporación de las explicaciones detalladas del simulador
             with st.expander("Ver Análisis Detallado de Escenarios y Recomendaciones"):
                 st.markdown(f"""
                 #### Análisis del Escenario: Mejora de Formación
@@ -306,7 +323,7 @@ try:
             - `Potencial Crecimiento:` Empleados leales y con buen clima, pero quizás con un desempeño que se puede potenciar.
             - `Bajo Compromiso:` Suelen ser empleados más jóvenes, con bajo clima y alto riesgo. Requieren una intervención para mejorar su integración.
             - `En Riesgo:` El grupo más crítico. Combinan varios factores negativos que disparan su probabilidad de abandono.
-        - **Impulsores Clave (Feature Importance):** Los factores que más peso tienen para el modelo a la hora de hacer una predicción.
+        - **Impulsores Clave (Feature Importance):** Los factores o variables que más peso tienen para el modelo a la hora de hacer una predicción.
         - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto.
         """)
         st.subheader("Metodología del Modelo")
@@ -316,4 +333,6 @@ try:
         """)
 
 except Exception as e:
-    st.error(f"Se ha producido un error inesperado. Asegúrate de que tu archivo CSV es correcto. Error: {e}")
+    st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
+    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias. Puedes descargar la plantilla de ejemplo desde la barra lateral.")
+
