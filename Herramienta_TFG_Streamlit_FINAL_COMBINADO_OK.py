@@ -59,9 +59,23 @@ def process_data(_df):
     if missing:
         return None, f"Faltan las columnas: {', '.join(missing)}"
     
+    # Asegurarse que las columnas categóricas que faltan no den error
+    for col in ['Departamento', 'Tipo_Contrato']:
+        if col not in _df.columns:
+            _df[col] = 'Desconocido'
+
     df_encoded = pd.get_dummies(_df, columns=["Departamento", "Tipo_Contrato"], drop_first=True)
+    
+    # Lista de todas las columnas posibles tras el one-hot encoding
+    # Esta lista debe ser consistente entre entrenamiento y predicción
+    # Aquí asumimos que el modelo se entrena al vuelo, así que es más simple.
+    
+    if 'Riesgo_Abandono' not in df_encoded.columns:
+         return None, "La columna 'Riesgo_Abandono' es necesaria para el entrenamiento del modelo."
+
     X = df_encoded.drop("Riesgo_Abandono", axis=1)
     y = df_encoded["Riesgo_Abandono"]
+    
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
@@ -81,7 +95,7 @@ def process_data(_df):
             if antiguedad < 2: return "Riesgo MEDIO en empleado nuevo. Posible problema de adaptación. ACCIÓN: Reforzar 'onboarding' y asignar un mentor."
             return "Riesgo MEDIO. Empleado en observación. ACCIÓN: Fomentar formación y dar feedback para aumentar su compromiso."
         else:
-            return "Riesgo BAJO. Empleado comprometido. ACCIÓN: Mantener buenas condiciones y ofrecer desarrollo a largo plazo."
+            return "Riesgo BAJO. Empleado comprometido. ACCIÓN: Mantener condiciones y ofrecer desarrollo a largo plazo."
             
     df_sim['Recomendación'] = df_sim.apply(generate_detailed_recommendation, axis=1)
 
@@ -104,8 +118,9 @@ if uploaded_file is None:
     st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda.")
     st.stop()
 
+# --- 1. PROCESAR DATOS ---
 df_original = pd.read_csv(uploaded_file, sep=";")
-df_sim, error_message = process_data(df_original)
+df_sim, error_message = process_data(df_original.copy())
 
 if error_message:
     st.error(f"❌ {error_message}")
@@ -113,9 +128,7 @@ if error_message:
 
 st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
 
-# ==========================================
-# Filtros Interactivos en la Barra Lateral
-# ==========================================
+# --- 2. DEFINIR FILTROS Y DATAFRAME FILTRADO ---
 st.sidebar.markdown("---")
 st.sidebar.header("📊 Filtros del Informe")
 dept_list = ['Todos'] + sorted(df_sim['Departamento'].unique().tolist())
@@ -130,7 +143,7 @@ if dept_selection != 'Todos':
 if perfil_selection != 'Todos':
     df_filtered = df_filtered[df_filtered['Perfil_Empleado'] == perfil_selection]
 
-# --- LÓGICA DE TEXTO DINÁMICO (CORREGIDA) ---
+# --- 3. CREAR TEXTO DINÁMICO (AHORA SIEMPRE DISPONIBLE) ---
 filter_text = "toda la plantilla"
 if dept_selection != 'Todos' and perfil_selection != 'Todos':
     filter_text = f"el perfil '{perfil_selection}' en el departamento '{dept_selection}'"
@@ -139,9 +152,7 @@ elif dept_selection != 'Todos':
 elif perfil_selection != 'Todos':
     filter_text = f"el perfil '{perfil_selection}'"
 
-# ==========================================
-# Estructura de Pestañas
-# ==========================================
+# --- 4. CREAR PESTAÑAS Y MOSTRAR CONTENIDO ---
 tab1, tab2 = st.tabs(["📁 Informe General y Análisis de Empleados", "💡 Dashboard Estratégico y Simulación"])
 
 with tab1:
@@ -158,13 +169,20 @@ with tab1:
         
         with col2:
             st.subheader("Riesgo Medio por Departamento")
-            riesgo_dpto = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=True)
-            fig, ax = plt.subplots(); riesgo_dpto.plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
-            st.caption(f"Comparativa de riesgo entre los departamentos de **{filter_text}**.")
+            # Usar df_sim para la comparación completa, pero resaltar la selección
+            riesgo_dpto_total = df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=False)
+            fig, ax = plt.subplots()
+            colors = ['salmon' if x in df_filtered['Departamento'].unique() else 'lightgray' for x in riesgo_dpto_total.index]
+            riesgo_dpto_total.plot(kind='bar', ax=ax, color=colors)
+            ax.set_ylabel("Riesgo Medio")
+            st.pyplot(fig)
+            st.caption(f"Comparativa de riesgo. Departamentos en rojo/salmón corresponden a la selección actual.")
         
         st.markdown("---")
         
         st.header("Consulta Detallada por Empleado")
+        st.markdown(f"Selecciona un empleado de la lista para ver su ficha. Actualmente mostrando **{len(df_filtered)}** empleado(s).")
+        
         selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index)
         
         if selected_id is not None:
@@ -224,11 +242,28 @@ with tab2:
         scaler_radar = MinMaxScaler()
         df_radar = df_sim.copy()
         df_radar[radar_features] = scaler_radar.fit_transform(df_radar[radar_features])
-        profile_means = df_radar.groupby('Perfil_Empleado')[radar_features].mean()
         
+        # Usar el df_filtered para el radar del grupo seleccionado
+        df_radar_filtered = df_filtered.copy()
+        df_radar_filtered[radar_features] = scaler_radar.transform(df_radar_filtered[radar_features])
+
         fig = go.Figure()
-        fig.add_trace(go.Scatterpolar(r=profile_means.loc[perfil_selection].values if perfil_selection != 'Todos' else df_radar[df_radar['Departamento'].isin(dept_selection)][radar_features].mean().values if dept_selection != 'Todos' else df_radar[radar_features].mean().values, theta=radar_features, fill='toself', name=f'Selección Actual'))
-        fig.add_trace(go.Scatterpolar(r=df_radar[radar_features].mean().values, theta=radar_features, fill='toself', name='Media Empresa', fillcolor='rgba(255,165,0,0.2)', line=dict(color='orange')))
+        # Radar para el grupo filtrado
+        fig.add_trace(go.Scatterpolar(
+            r=df_radar_filtered[radar_features].mean().values, 
+            theta=radar_features, 
+            fill='toself', 
+            name=f'Selección Actual'
+        ))
+        # Radar para la media de la empresa completa
+        fig.add_trace(go.Scatterpolar(
+            r=df_radar[radar_features].mean().values, 
+            theta=radar_features, 
+            fill='toself', 
+            name='Media Empresa', 
+            fillcolor='rgba(255,165,0,0.2)', 
+            line=dict(color='orange')
+        ))
         fig.update_layout(title=f"Comparativa de Características para {filter_text}", polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, height=400)
         st.plotly_chart(fig, use_container_width=True)
         st.caption("La gráfica de radar compara las características medias del grupo filtrado (azul) con la media de toda la empresa (naranja).")
