@@ -55,7 +55,6 @@ uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=
 @st.cache_data
 def process_data(_df):
     df_proc = _df.copy()
-    # ... (El resto de la función se mantiene igual)
     required_columns = ['Edad', 'Antigüedad', 'Desempeño', 'Salario', 'Formación_Reciente', 'Clima_Laboral', 'Departamento', 'Riesgo_Abandono', 'Horas_Extra', 'Bajas_Último_Año', 'Promociones_2_Años', 'Tipo_Contrato']
     missing = [col for col in required_columns if col not in df_proc.columns]
     if missing:
@@ -66,6 +65,7 @@ def process_data(_df):
 
     X = df_encoded.drop("Riesgo_Abandono", axis=1)
     y = df_encoded["Riesgo_Abandono"]
+    
     scaler = StandardScaler().fit(X)
     X_scaled = scaler.transform(X)
     
@@ -108,7 +108,7 @@ if uploaded_file is None:
     st.stop()
 
 df_original = pd.read_csv(uploaded_file, sep=";")
-df_sim, error_message, model, X_train_cols = process_data(df_original.copy())
+df_sim, error_message, model, X_cols = process_data(df_original.copy())
 
 if error_message:
     st.error(f"❌ {error_message}"); st.stop()
@@ -128,23 +128,22 @@ if perfil_selection != 'Todos': df_filtered = df_filtered[df_filtered['Perfil_Em
 # ==========================================
 # ESTRUCTURA DE PESTAÑAS
 # ==========================================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📈 Dashboard Principal", 
+tab1, tab2, tab3 = st.tabs([
+    "📈 Dashboard Principal y Riesgo", 
     "👥 Análisis por Segmentos", 
-    "🧑‍💻 Consulta y Simulación",
-    "📚 Glosario y Metodología"
+    "🧑‍💻 Consulta Individual y Simulación"
 ])
 
-# --- PESTAÑA 1: DASHBOARD PRINCIPAL ---
+# --- PESTAÑA 1: DASHBOARD Y ANÁLISIS DE RIESGO ---
 with tab1:
-    st.header("Dashboard y Resumen Ejecutivo")
+    st.header("Dashboard Principal y Análisis de Riesgo")
     filter_text = "toda la plantilla"
     if dept_selection != 'Todos' or perfil_selection != 'Todos': filter_text = "la selección filtrada"
-    st.markdown(f"A continuación se muestran los indicadores y conclusiones clave para **{filter_text}**.")
     
     if df_filtered.empty:
         st.warning("La selección de filtros no ha devuelto ningún empleado.")
     else:
+        st.markdown(f"A continuación se muestran los indicadores clave para **{filter_text}**.")
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
         kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
@@ -155,23 +154,26 @@ with tab1:
         
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("🎯 Conclusiones y Estrategias Clave")
-            st.success("**Identificar y retener talento joven:** Especialmente aquellos con alto potencial y riesgo de fuga.")
-            st.warning("**Fomentar la formación:** Priorizar áreas con baja motivación o desempeño para mejorar el compromiso.")
-            st.info("**Implementar medidas personalizadas:** Usar la segmentación por perfiles para adaptar las acciones de RRHH.")
-            st.error("**Actuar sobre el clima laboral:** Promover entrevistas de seguimiento en departamentos con bajo clima para atajar problemas de raíz.")
-        
+            st.subheader("Distribución del Riesgo de Abandono")
+            fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
+            st.caption("Esta gráfica muestra cuántos empleados hay en cada nivel de riesgo. Un pico a la derecha es una señal de alerta.")
         with col2:
             st.subheader("Top 5 Empleados con Mayor Riesgo")
-            # CORREGIDO: Usar enumerate para el ranking
+            st.caption("Ranking de empleados que requieren atención más urgente según el modelo.")
             for i, (index, row) in enumerate(df_filtered.nlargest(5, 'Prob_Abandono').iterrows(), 1):
                 riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                 st.markdown(f"""
                 <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
-                    **Empleado {i} (ID {index})** - {row['Departamento']} - **Riesgo: {row['Prob_Abandono']:.1%}** <br>
-                    <small>{row['Recomendación']}</small>
+                    **Empleado {i}** (ID: {index}) - {row['Departamento']} - **Riesgo: {row['Prob_Abandono']:.1%}** <br>
+                    <small><i>Recomendación: {row['Recomendación']}</i></small>
                 </div>
                 """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
+        importances = pd.DataFrame(data={'Attribute': X_cols.columns, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=True).tail(10)
+        fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
+        st.caption("Esta gráfica muestra los factores con mayor peso en el modelo predictivo. Ayuda a identificar qué palancas de RRHH (salario, clima, etc.) son las más importantes a nivel global.")
 
 # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
 with tab2:
@@ -181,10 +183,8 @@ with tab2:
         st.subheader("Análisis de Perfiles de Empleados (Clusters)")
         col1, col2 = st.columns(2)
         with col1:
-            # NUEVO: Gráfica de Dispersión PCA
             st.markdown("##### Visualización de Clusters (PCA)")
             pca = PCA(n_components=2)
-            # Asegurarse de usar las mismas columnas que en el entrenamiento del clustering
             features_cluster = ["Edad", "Antigüedad", "Desempeño", "Salario", "Formación_Reciente", "Clima_Laboral", "Horas_Extra", "Bajas_Último_Año", "Promociones_2_Años"]
             X_cluster_filtered = df_filtered[features_cluster]
             X_pca = pca.fit_transform(StandardScaler().fit_transform(X_cluster_filtered))
@@ -204,60 +204,66 @@ with tab2:
                     st.info(f"**Recomendación principal:** {grupo['Recomendación'].mode()[0]}")
         
         st.markdown("---")
+        
         st.subheader("Análisis por Departamento")
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("##### Clima Laboral Medio")
             fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
+            st.caption("Compara la satisfacción media en el entorno de trabajo entre los departamentos seleccionados.")
         with col2:
             st.markdown("##### Riesgo de Abandono Medio")
             fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
+            st.caption("Identifica los departamentos con mayor o menor propensión a la fuga de talento.")
 
-# --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
+# --- PESTAÑA 3: CONSULTA INDIVIDUAL Y SIMULACIÓN ---
 with tab3:
-    st.header("Consulta de Empleados y Simulación")
+    st.header("Consulta Individual y Simulación de Políticas")
     if df_filtered.empty: st.warning("No hay empleados que coincidan con los filtros.")
     else:
-        st.subheader("Tabla de Empleados")
-        st.markdown("Puedes ordenar la tabla haciendo clic en las cabeceras de las columnas.")
-        st.dataframe(df_filtered[['Departamento', 'Perfil_Empleado', 'Edad', 'Antigüedad', 'Prob_Abandono', 'Recomendación']])
+        st.subheader("Análisis Individual Detallado (XAI)")
+        st.markdown("Selecciona un empleado de la lista para ver su ficha completa y los factores clave que determinan su riesgo de abandono.")
+        
+        selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index)
+        
+        if selected_id is not None:
+            # ... (código de la ficha individual con XAI) ...
+            row = df_filtered.loc[selected_id]
+            riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else ("orange" if row.get('Prob_Abandono', 0) >= 0.4 else "green")
+            st.markdown(f"""<div style="border: 2px solid {riesgo_color}; padding: 15px; border-radius: 10px; margin-top: 15px; background-color: #f8f9fa;">
+                <h5 style="color:{riesgo_color}; margin-bottom: 5px;">RIESGO DE ABANDONO (ID {selected_id}): {row.get('Prob_Abandono', 0):.1%}</h5>
+                <p style="margin-bottom: 0px;"><strong>RECOMENDACIÓN:</strong> {row.get('Recomendación', 'N/A')}</p>
+            </div>""", unsafe_allow_html=True)
+
+            st.markdown("##### ¿Por qué tiene este nivel de riesgo?")
+            df_encoded_full = pd.get_dummies(df_original, columns=["Departamento", "Tipo_Contrato"], drop_first=True)
+            X_full = df_encoded_full.drop("Riesgo_Abandono", axis=1)
+            scaler_full = StandardScaler().fit(X_full)
+            employee_scaled_data = scaler_full.transform(X_full.loc[[selected_id]])[0]
+            contributions = employee_scaled_data * model.coef_[0]
+            feature_contribution = pd.DataFrame({'feature': X_cols.columns, 'contribution': contributions}).sort_values(by='contribution', ascending=False)
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("🔴 **Factores que AUMENTAN el riesgo:**")
+                for i, rec in feature_contribution.head(3).iterrows(): st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
+            with c2:
+                st.markdown("🟢 **Factores que REDUCEN el riesgo:**")
+                for i, rec in feature_contribution.tail(3).sort_values(by='contribution').iterrows(): st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
         
         st.markdown("---")
-        
         st.subheader("🕹️ Simulador de Políticas 'What-If'")
-        # ... (código del simulador)
+        # ... (código del simulador) ...
         sim_col1, sim_col2 = st.columns([1, 2])
         with sim_col1:
-            st.markdown("Ajusta el impacto de cada política para ver cómo afectaría al riesgo del grupo filtrado.")
-            form_impact = st.slider("Impacto Mejora Formación (%)", 0, 50, 10, key="sim_form_tab3")
-            sal_impact = st.slider("Impacto Mejora Salarial (%)", 0, 50, 15, key="sim_sal_tab3")
+            st.markdown("Ajusta el impacto esperado de cada política para ver cómo afectaría al riesgo del grupo filtrado.")
+            form_impact = st.slider("Impacto por Mejora de Formación (%)", 0, 50, 10, key="sim_form_tab3")
+            sal_impact = st.slider("Impacto por Mejora Salarial (%)", 0, 50, 15, key="sim_sal_tab3")
         with sim_col2:
-            # (Lógica de cálculo de escenarios)
             base_risk = df_filtered['Prob_Abandono'].mean()
             form_sim = base_risk * (1 - form_impact / 100)
             sal_sim = base_risk * (1 - sal_impact / 100)
             both_sim = base_risk * (1 - (form_impact + sal_impact) / 100)
             escenarios_sim = {'Estado Actual': base_risk, 'Mejora Formación': form_sim, 'Mejora Salarial': sal_sim, 'Política Combinada': both_sim}
-            fig_sim, ax_sim = plt.subplots()
-            bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
-            for bar in bars.patches:
-                ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
-            ax_sim.set_ylabel("Riesgo Medio de Abandono")
-            st.pyplot(fig_sim)
-
-# --- PESTAÑA 4: GLOSARIO Y METODOLOGÍA ---
-with tab4:
-    st.header("📚 Glosario y Metodología")
-    st.subheader("Glosario de Términos")
-    st.markdown("""
-    - **Probabilidad de Abandono:** Porcentaje (de 0% a 100%) que indica la probabilidad de que un empleado deje la empresa, calculado por el modelo de IA.
-    - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares (edad, desempeño, salario, etc.), identificado automáticamente por un algoritmo de clustering (K-Means).
-    - **Clima Laboral:** Puntuación media (generalmente de 1 a 5) que refleja la satisfacción del empleado con su entorno de trabajo.
-    - **Gráfica de Dispersión (PCA):** Técnica visual que simplifica datos complejos para mostrar los diferentes grupos de perfiles en un mapa 2D.
-    """)
-    st.subheader("Metodología del Modelo")
-    st.markdown("""
-    1.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística** para predecir el riesgo de abandono. Este modelo aprende de los datos históricos para identificar los patrones que llevan a la rotación de personal.
-    2.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en perfiles distintos sin supervisión previa. Esto permite descubrir arquetipos naturales dentro de la plantilla.
-    3.  **Simulación:** El simulador aplica reducciones porcentuales al riesgo de abandono calculado para estimar el impacto potencial de diferentes políticas de RRHH.
-    """)
+            fig_sim, ax_sim = plt.subplots(); bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
+            for bar in bars.patches: ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
+            ax_sim.set_ylabel("Riesgo Medio de Abandono"); st.pyplot(fig_sim)
