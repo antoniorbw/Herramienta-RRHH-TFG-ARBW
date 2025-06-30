@@ -1,7 +1,3 @@
-
-### Script Final con Plantilla Descargable
-
-```python
 # ==========================================
 # Librerías y Configuración Inicial
 # ==========================================
@@ -18,7 +14,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from fpdf import FPDF
 import os
-import io # Necesario para manejar el archivo en memoria
+import io
 
 # --- Configuración de la página de Streamlit ---
 st.set_page_config(page_title="Herramienta IA - RRHH", layout="wide")
@@ -29,23 +25,24 @@ st.set_page_config(page_title="Herramienta IA - RRHH", layout="wide")
 st.sidebar.header("⚙️ Configuración")
 
 # --- Descarga de plantilla CSV ---
-# Contenido del archivo CSV que proporcionaste
-csv_content = """Edad;Antigüedad;Desempeño;Salario;Formación_Reciente;Clima_Laboral;Departamento;Riesgo_Abandono;Horas_Extra;Bajas_Último_Año;Promociones_2_Años;Tipo_Contrato
-35;5;3;35000;1;3;Ventas;0;5;1;0;Indefinido
-42;10;4;55000;0;4;TI;1;2;0;1;Indefinido
-28;2;5;60000;1;5;Marketing;0;0;0;1;Temporal
-50;20;4;75000;0;2;Ventas;1;8;2;0;Indefinido
-31;3;2;32000;1;1;TI;1;10;3;0;Temporal
-25;1;4;40000;0;4;Marketing;0;1;0;0;Indefinido
-38;8;3;48000;1;3;Producción;0;4;1;1;Indefinido
-45;15;5;85000;1;5;Producción;0;0;0;1;Indefinido
-29;4;2;33000;0;2;RRHH;1;6;2;0;Temporal
-33;6;4;45000;1;4;RRHH;0;2;0;1;Indefinido
-"""
+@st.cache_data
+def create_template_csv():
+    template_data = {
+        'Edad': [35, 42, 28, 50, 31], 'Antigüedad': [5, 10, 2, 20, 3],
+        'Desempeño': [3, 4, 5, 4, 2], 'Salario': [35000, 55000, 60000, 75000, 32000],
+        'Formación_Reciente': [1, 0, 1, 0, 1], 'Clima_Laboral': [3, 4, 5, 2, 1],
+        'Departamento': ['Ventas', 'TI', 'Marketing', 'Ventas', 'TI'],
+        'Riesgo_Abandono': [0, 1, 0, 1, 1], 'Horas_Extra': [5, 2, 0, 8, 10],
+        'Bajas_Último_Año': [1, 0, 0, 2, 3], 'Promociones_2_Años': [0, 1, 1, 0, 0],
+        'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal']
+    }
+    df_template = pd.DataFrame(template_data)
+    return df_template.to_csv(index=False, sep=';').encode('utf-8')
 
+csv_template = create_template_csv()
 st.sidebar.download_button(
    label="📥 Descargar plantilla de ejemplo (.csv)",
-   data=csv_content.encode('utf-8'), # Codificamos el string a bytes
+   data=csv_template,
    file_name='plantilla_datos_empleados.csv',
    mime='text/csv',
 )
@@ -294,5 +291,4 @@ if st.sidebar.button("Generar y Descargar PDF"):
         file_name=f"informe_grafico_RRHH_{datetime.today().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
-
 ```
