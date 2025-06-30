@@ -1,8 +1,8 @@
+streamlit
 pandas
+numpy
+scikit-learn
 matplotlib
 seaborn
 fpdf
-scikit-learn
-numpy
-streamlit
-reportlab
+plotly
