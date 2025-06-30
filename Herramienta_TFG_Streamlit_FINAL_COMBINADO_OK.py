@@ -63,7 +63,7 @@ def process_data(_df):
     df_encoded = pd.get_dummies(df_proc, columns=["Departamento", "Tipo_Contrato"], drop_first=True)
     
     if 'Riesgo_Abandono' not in df_encoded.columns:
-         return None, "La columna 'Riesgo_Abandono' es necesaria para el entrenamiento.", None, None
+         return None, "La columna 'Riesgo_Abandono' es necesaria.", None, None
 
     X = df_encoded.drop("Riesgo_Abandono", axis=1)
     y = df_encoded["Riesgo_Abandono"]
@@ -111,15 +111,13 @@ if uploaded_file is None:
     st.stop()
 
 df_original = pd.read_csv(uploaded_file, sep=";")
-df_sim, error_message, model, feature_names = process_data(df_original)
+df_sim, error_message, model, feature_names = process_data(df_original.copy())
 
 if error_message:
     st.error(f"❌ {error_message}")
     st.stop()
 
-# ==========================================
-# Filtros Interactivos
-# ==========================================
+# --- Filtros ---
 st.sidebar.markdown("---")
 st.sidebar.header("📊 Filtros del Informe")
 dept_list = ['Todos'] + sorted(df_sim['Departamento'].unique().tolist())
@@ -135,112 +133,110 @@ if perfil_selection != 'Todos':
     df_filtered = df_filtered[df_filtered['Perfil_Empleado'] == perfil_selection]
 
 # ==========================================
-# Estructura de Pestañas
+# Nueva Estructura de Pestañas
 # ==========================================
-tab1, tab2 = st.tabs(["📁 Informe General y Análisis de Empleados", "💡 Dashboard Estratégico y Simulación"])
+tab1, tab2, tab3 = st.tabs([
+    "📈 Dashboard y Resumen Ejecutivo", 
+    "👥 Análisis por Segmentos", 
+    "🧑‍💻 Consulta de Empleados y Simulación"
+])
 
+# --- PESTAÑA 1: DASHBOARD Y RESUMEN EJECUTIVO ---
 with tab1:
-    st.header(f"Análisis General y Consulta Individual")
+    st.header("Dashboard y Resumen Ejecutivo")
+    
+    filter_text = "toda la plantilla"
+    if dept_selection != 'Todos' or perfil_selection != 'Todos':
+        filter_text = "la selección filtrada"
+
+    st.markdown(f"A continuación se muestran los indicadores y conclusiones clave para **{filter_text}**.")
     
     if df_filtered.empty:
         st.warning("La selección de filtros no ha devuelto ningún empleado.")
     else:
-        st.subheader("Consulta Detallada por Empleado")
-        st.markdown(f"Selecciona un empleado de la lista para ver su ficha. Actualmente mostrando **{len(df_filtered)}** empleado(s).")
-        
-        selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index)
-        
-        if selected_id is not None:
-            row = df_filtered.loc[selected_id]
-            
-            # --- Ficha de Empleado ---
-            st.markdown(f"#### Ficha del Empleado: ID {selected_id}")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"**Departamento**: {row.get('Departamento', 'N/A')} \n **Perfil**: {row.get('Perfil_Empleado', 'N/A')} \n **Edad**: {row.get('Edad', 'N/A')} años")
-            with c2:
-                st.markdown(f"**Antigüedad**: {row.get('Antigüedad', 'N/A')} años \n **Desempeño**: `{row.get('Desempeño', 'N/A')}/5` \n **Clima Laboral**: `{row.get('Clima_Laboral', 'N/A')}/5`")
-            
-            riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else ("orange" if row.get('Prob_Abandono', 0) >= 0.4 else "green")
-            st.markdown(f"""<div style="border: 2px solid {riesgo_color}; padding: 15px; border-radius: 10px; margin-top: 15px; background-color: #f8f9fa;">
-                <h5 style="color:{riesgo_color}; margin-bottom: 5px;">RIESGO DE ABANDONO: {row.get('Prob_Abandono', 0):.1%}</h5>
-                <p style="margin-bottom: 0px;"><strong>RECOMENDACIÓN:</strong> {row.get('Recomendación', 'N/A')}</p>
-            </div>""", unsafe_allow_html=True)
-
-            # --- NUEVO: Explicabilidad (XAI) para el empleado seleccionado ---
-            st.markdown("---")
-            st.markdown("##### ¿Por qué tiene este nivel de riesgo?")
-            st.caption("A continuación se muestran los factores que más influyen en la predicción para este empleado.")
-            
-            # Recrear el scaler y los datos codificados para obtener la fila correcta
-            df_encoded_full = pd.get_dummies(df_original, columns=["Departamento", "Tipo_Contrato"], drop_first=True)
-            X_full = df_encoded_full.drop("Riesgo_Abandono", axis=1)
-            scaler_full = StandardScaler().fit(X_full)
-            X_scaled_full = scaler_full.transform(X_full)
-            
-            employee_scaled_data = X_scaled_full[selected_id]
-            contributions = employee_scaled_data * model.coef_[0]
-            
-            feature_contribution = pd.DataFrame({
-                'feature': feature_names,
-                'contribution': contributions
-            }).sort_values(by='contribution', ascending=False)
-
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("🔴 **Factores que AUMENTAN el riesgo:**")
-                top_positive = feature_contribution.head(3)
-                for i, rec in top_positive.iterrows():
-                    st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
-
-            with col2:
-                st.markdown("🟢 **Factores que REDUCEN el riesgo:**")
-                top_negative = feature_contribution.tail(3).sort_values(by='contribution')
-                for i, rec in top_negative.iterrows():
-                    st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
-
-with tab2:
-    st.header("Dashboard Estratégico Interactivo")
-    
-    if df_filtered.empty:
-        st.warning("La selección de filtros no ha devuelto ningún empleado.")
-    else:
-        filter_text = f"el grupo filtrado ({len(df_filtered)} empleados)" if (dept_selection != 'Todos' or perfil_selection != 'Todos') else "toda la plantilla"
-        st.markdown(f"**Indicadores clave para {filter_text}:**")
-        
+        # --- KPIs ---
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
         kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
         kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
         kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
         
-        st.markdown("<hr>", unsafe_allow_html=True)
-
-        # --- NUEVO: Análisis de Impulsores Clave (Feature Importance) ---
-        st.subheader("🎯 Impulsores Clave del Riesgo de Abandono")
-        st.caption(f"Análisis sobre **{filter_text}** que muestra los factores con mayor impacto en el modelo predictivo.")
+        st.markdown("---")
         
-        importances = pd.DataFrame(data={
-            'Attribute': feature_names,
-            'Importance': np.abs(model.coef_[0])
-        }).sort_values(by='Importance', ascending=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            # --- Conclusiones Estratégicas ---
+            st.subheader("🎯 Conclusiones y Estrategias Clave")
+            st.success("**Identificar y retener talento joven:** Especialmente aquellos con alto potencial y riesgo de fuga. [cite: 37]")
+            st.warning("**Fomentar la formación:** Priorizar áreas con baja motivación o desempeño para mejorar el compromiso. [cite: 38]")
+            st.info("**Implementar medidas personalizadas:** Usar la segmentación por perfiles para adaptar las acciones de RRHH. [cite: 38]")
+            st.error("**Actuar sobre el clima laboral:** Promover entrevistas de seguimiento en departamentos con bajo clima para atajar problemas de raíz. [cite: 39]")
 
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.barh(importances['Attribute'], importances['Importance'], color='skyblue')
-        ax.set_title('Importancia de cada Factor en la Predicción de Abandono')
-        st.pyplot(fig)
-        st.caption("🔍 **Interpretación:** Los factores con las barras más largas son los que el modelo considera más importantes para predecir si un empleado se irá. Esto ayuda a identificar las áreas de mayor impacto para las políticas de RRHH a nivel global.")
+        with col2:
+            # --- Top 5 Empleados en Riesgo ---
+            st.subheader("Top 5 Empleados con Mayor Riesgo")
+            top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
+            for index, row in top_5_risk.iterrows():
+                riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
+                st.markdown(f"""
+                <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
+                    **ID {index}** ({row['Departamento']}) - **Riesgo: {row['Prob_Abandono']:.1%}** <br>
+                    <small>{row['Recomendación']}</small>
+                </div>
+                """, unsafe_allow_html=True)
 
-        st.markdown("<hr>", unsafe_allow_html=True)
+# --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
+with tab2:
+    st.header("Análisis por Segmentos (Perfiles y Departamentos)")
+    if df_filtered.empty:
+        st.warning("La selección de filtros no ha devuelto ningún empleado.")
+    else:
+        st.subheader("Análisis de Perfiles de Empleados (Clusters)")
+        st.markdown("A continuación se describen los perfiles identificados en el grupo seleccionado.")
+        
+        # --- Resumen de Perfiles ---
+        perfiles_en_filtro = df_filtered['Perfil_Empleado'].unique()
+        for perfil in perfiles_en_filtro:
+            grupo = df_filtered[df_filtered['Perfil_Empleado'] == perfil]
+            with st.expander(f"**Perfil: '{perfil}'** ({len(grupo)} empleados)"):
+                st.markdown(f"Este grupo se caracteriza por tener un **riesgo de abandono medio de {grupo['Prob_Abandono'].mean():.1%}** y un **clima laboral de {grupo['Clima_Laboral'].mean():.1f}/5**.")
+                st.markdown(f"Su **desempeño medio es de {grupo['Desempeño'].mean():.1f}/5** y su **antigüedad media es de {grupo['Antigüedad'].mean():.1f} años**.")
+                st.info(f"**Recomendación principal para este grupo:** {grupo['Recomendación'].mode()[0]}")
 
+        st.markdown("---")
+        
+        # --- Gráficas por Departamento ---
+        st.subheader("Análisis por Departamento")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("##### Clima Laboral Medio")
+            clima_dpto = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
+            fig, ax = plt.subplots(); clima_dpto.plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
+        with col2:
+            st.markdown("##### Riesgo de Abandono Medio")
+            riesgo_dpto = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
+            fig, ax = plt.subplots(); riesgo_dpto.plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
+
+# --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
+with tab3:
+    st.header("Consulta de Empleados y Simulación de Políticas")
+    if df_filtered.empty:
+        st.warning("La selección de filtros no ha devuelto ningún empleado.")
+    else:
+        # --- Tabla Completa ---
+        st.subheader("Tabla de Empleados (Filtrada)")
+        st.markdown("Aquí puedes ver y ordenar la lista completa de empleados que coinciden con tu selección.")
+        st.dataframe(df_filtered[['Departamento', 'Perfil_Empleado', 'Edad', 'Antigüedad', 'Desempeño', 'Clima_Laboral', 'Prob_Abandono', 'Recomendación']])
+        
+        st.markdown("---")
+        
         # --- Simulador Interactivo ---
         st.subheader("🕹️ Simulador de Políticas 'What-If'")
-        #...(el resto del código de la pestaña 2 se mantiene igual)...
         sim_col1, sim_col2 = st.columns([1, 2])
         with sim_col1:
-            st.markdown("Ajusta el impacto esperado de cada política para ver cómo afectaría al riesgo.")
-            form_impact = st.slider("Impacto por Mejora de Formación (%)", 0, 50, 10, key="sim_form")
-            sal_impact = st.slider("Impacto por Mejora Salarial (%)", 0, 50, 15, key="sim_sal")
+            st.markdown("Ajusta el impacto esperado de cada política para ver cómo afectaría al riesgo del grupo de empleados mostrado en la tabla.")
+            form_impact = st.slider("Impacto por Mejora de Formación (%)", 0, 50, 10, key="sim_form_tab3")
+            sal_impact = st.slider("Impacto por Mejora Salarial (%)", 0, 50, 15, key="sim_sal_tab3")
         
         with sim_col2:
             form_sim = df_filtered['Prob_Abandono'].mean() * (1 - form_impact / 100)
