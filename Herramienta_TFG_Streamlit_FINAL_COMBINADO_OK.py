@@ -1,5 +1,8 @@
 # ==========================================
 # Librerías y Configuración Inicial
+#
+# Asegúrate de tener todas las librerías instaladas:
+# pip install streamlit pandas numpy scikit-learn matplotlib seaborn fpdf plotly
 # ==========================================
 import streamlit as st
 from datetime import datetime
@@ -45,6 +48,7 @@ st.sidebar.download_button(
    file_name='plantilla_datos_empleados.csv',
    mime='text/csv',
 )
+st.sidebar.caption("Nota: Si al abrir en Excel los datos no se separan en columnas, utiliza la opción 'Datos' -> 'Desde texto/CSV' y elige 'Punto y coma' como delimitador.")
 
 # --- Carga de datos ---
 uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
@@ -92,6 +96,7 @@ def process_data(df):
             return "Riesgo MEDIO. Empleado en zona de observación. ACCIÓN: Fomentar la formación y ofrecer feedback constructivo para aumentar su compromiso."
         else:
             return "Riesgo BAJO. Empleado comprometido. ACCIÓN: Mantener buenas condiciones y ofrecer oportunidades de desarrollo a largo plazo."
+            
     df_sim['Recomendación'] = df_sim.apply(generate_detailed_recommendation, axis=1)
 
     features = ["Edad", "Antigüedad", "Desempeño", "Salario", "Formación_Reciente", "Clima_Laboral", "Horas_Extra", "Bajas_Último_Año", "Promociones_2_Años"]
@@ -133,7 +138,6 @@ if perfil_selection:
 st.markdown("---")
 st.header("📈 Dashboard Estratégico")
 
-# --- Texto dinámico para el dashboard ---
 filter_text = "toda la plantilla"
 if dept_selection and perfil_selection:
     filter_text = f"los perfiles '{', '.join(perfil_selection)}' en los departamentos '{', '.join(dept_selection)}'"
@@ -190,13 +194,11 @@ with st.expander("▶️ Ver Simulación de Políticas Estratégicas"):
 st.markdown("---")
 st.header("👤 Análisis Profundo de Perfiles")
 
-# --- Normalización de datos para la gráfica de radar ---
 radar_features = ['Desempeño', 'Clima_Laboral', 'Salario', 'Antigüedad', 'Horas_Extra']
 scaler_radar = MinMaxScaler()
 df_radar = df_sim.copy()
 df_radar[radar_features] = scaler_radar.fit_transform(df_radar[radar_features])
 
-# --- Medias por perfil y totales ---
 profile_means = df_radar.groupby('Perfil_Empleado')[radar_features].mean()
 total_means = df_radar[radar_features].mean()
 
@@ -208,23 +210,9 @@ with col1:
     
     if profile_to_show:
         fig = go.Figure()
-        # Radar del perfil seleccionado
-        fig.add_trace(go.Scatterpolar(
-            r=profile_means.loc[profile_to_show].values,
-            theta=radar_features,
-            fill='toself',
-            name=f'Perfil: {profile_to_show}'
-        ))
-        # Radar de la media de la empresa
-        fig.add_trace(go.Scatterpolar(
-            r=total_means.values,
-            theta=radar_features,
-            fill='toself',
-            name='Media de la Empresa',
-            fillcolor='rgba(255,165,0,0.2)',
-            line=dict(color='orange')
-        ))
-        fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True)
+        fig.add_trace(go.Scatterpolar(r=profile_means.loc[profile_to_show].values, theta=radar_features, fill='toself', name=f'Perfil: {profile_to_show}'))
+        fig.add_trace(go.Scatterpolar(r=total_means.values, theta=radar_features, fill='toself', name='Media de la Empresa', fillcolor='rgba(255,165,0,0.2)', line=dict(color='orange')))
+        fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, title=f"Comparativa del Perfil '{profile_to_show}'")
         st.plotly_chart(fig, use_container_width=True)
 
 with col2:
