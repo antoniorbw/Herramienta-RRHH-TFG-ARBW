@@ -291,4 +291,3 @@ if st.sidebar.button("Generar y Descargar PDF"):
         file_name=f"informe_grafico_RRHH_{datetime.today().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
-```
