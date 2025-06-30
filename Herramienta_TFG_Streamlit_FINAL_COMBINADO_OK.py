@@ -1,8 +1,5 @@
 # ==========================================
 # Librerías y Configuración Inicial
-#
-# Asegúrate de tener todas las librerías instaladas:
-# pip install streamlit pandas numpy scikit-learn matplotlib seaborn fpdf plotly
 # ==========================================
 import streamlit as st
 from datetime import datetime
@@ -48,30 +45,21 @@ st.sidebar.download_button(
    file_name='plantilla_datos_empleados.csv',
    mime='text/csv',
 )
-st.sidebar.caption("Nota: Si al abrir en Excel los datos no se separan en columnas, utiliza la opción 'Datos' -> 'Desde texto/CSV' y elige 'Punto y coma' como delimitador.")
 
 # --- Carga de datos ---
 uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
 
 # ==========================================
-# Cuerpo Principal de la Aplicación
+# Procesamiento Central de Datos
 # ==========================================
-st.title("🚀 Herramienta IA de Planificación Estratégica de RRHH")
-
-if uploaded_file is None:
-    st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda. Puedes descargar la plantilla de ejemplo para ver el formato requerido.")
-    st.stop()
-
-# --- Procesamiento y Modelado (se cachea para no re-ejecutar innecesariamente) ---
 @st.cache_data
 def process_data(df):
-    required_columns = ['Edad', 'Antigüedad', 'Desempeño', 'Salario', 'Formación_Reciente',
-                        'Clima_Laboral', 'Departamento', 'Riesgo_Abandono', 'Horas_Extra', 
-                        'Bajas_Último_Año', 'Promociones_2_Años', 'Tipo_Contrato']
+    # (El resto de la función de procesamiento se mantiene igual)
+    required_columns = ['Edad', 'Antigüedad', 'Desempeño', 'Salario', 'Formación_Reciente', 'Clima_Laboral', 'Departamento', 'Riesgo_Abandono', 'Horas_Extra', 'Bajas_Último_Año', 'Promociones_2_Años', 'Tipo_Contrato']
     missing = [col for col in required_columns if col not in df.columns]
     if missing:
-        return None, f"El archivo no es válido. Faltan las columnas: {', '.join(missing)}"
-
+        return None, f"Faltan las columnas: {', '.join(missing)}"
+    
     df_encoded = pd.get_dummies(df, columns=["Departamento", "Tipo_Contrato"], drop_first=True)
     X = df_encoded.drop("Riesgo_Abandono", axis=1)
     y = df_encoded["Riesgo_Abandono"]
@@ -81,21 +69,20 @@ def process_data(df):
     model = LogisticRegression()
     model.fit(X_scaled, y)
     
-    prob_abandono_original = model.predict_proba(X_scaled)[:, 1]
     df_sim = df.copy()
-    df_sim["Prob_Abandono"] = prob_abandono_original
+    df_sim["Prob_Abandono"] = model.predict_proba(X_scaled)[:, 1]
 
     def generate_detailed_recommendation(row):
         risk, clima, desempeno, antiguedad = row['Prob_Abandono'], row['Clima_Laboral'], row['Desempeño'], row['Antigüedad']
         if risk > 0.75:
             if clima < 3: return "Riesgo CRÍTICO. El bajo clima laboral es un factor clave. ACCIÓN URGENTE: Intervenir en el equipo y hablar con el empleado sobre su bienestar."
             if desempeno >= 4: return "Riesgo ALTO en un empleado de alto desempeño. Posible falta de retos o reconocimiento. ACCIÓN: Revisar plan de carrera y compensación."
-            return "Riesgo ALTO. Investigar causas específicas. ACCIÓN: Programar una entrevista de seguimiento para entender sus motivaciones y preocupaciones."
+            return "Riesgo ALTO. Investigar causas específicas. ACCIÓN: Programar una entrevista de seguimiento."
         elif risk > 0.4:
-            if antiguedad < 2: return "Riesgo MEDIO en empleado nuevo. Posible problema de adaptación. ACCIÓN: Reforzar el proceso de 'onboarding' y asignar un mentor."
-            return "Riesgo MEDIO. Empleado en zona de observación. ACCIÓN: Fomentar la formación y ofrecer feedback constructivo para aumentar su compromiso."
+            if antiguedad < 2: return "Riesgo MEDIO en empleado nuevo. Posible problema de adaptación. ACCIÓN: Reforzar 'onboarding' y asignar un mentor."
+            return "Riesgo MEDIO. Empleado en observación. ACCIÓN: Fomentar formación y dar feedback para aumentar su compromiso."
         else:
-            return "Riesgo BAJO. Empleado comprometido. ACCIÓN: Mantener buenas condiciones y ofrecer oportunidades de desarrollo a largo plazo."
+            return "Riesgo BAJO. Empleado comprometido. ACCIÓN: Mantener condiciones y ofrecer desarrollo a largo plazo."
             
     df_sim['Recomendación'] = df_sim.apply(generate_detailed_recommendation, axis=1)
 
@@ -109,6 +96,15 @@ def process_data(df):
     
     return df_sim, None
 
+# ==========================================
+# Cuerpo Principal de la Aplicación
+# ==========================================
+st.title("🚀 Herramienta IA de Planificación Estratégica de RRHH")
+
+if uploaded_file is None:
+    st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda.")
+    st.stop()
+
 df_original = pd.read_csv(uploaded_file, sep=";")
 df_sim, error_message = process_data(df_original)
 
@@ -116,7 +112,7 @@ if error_message:
     st.error(f"❌ {error_message}")
     st.stop()
 
-st.success(f"✅ Archivo **{uploaded_file.name}** cargado y procesado. Se han analizado **{len(df_sim)}** empleados.")
+st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
 
 # ==========================================
 # Filtros Interactivos en la Barra Lateral
@@ -133,100 +129,119 @@ if perfil_selection:
     df_filtered = df_filtered[df_filtered['Perfil_Empleado'].isin(perfil_selection)]
 
 # ==========================================
-# 1. Dashboard Estratégico y KPIs
+# Estructura de Pestañas
 # ==========================================
-st.markdown("---")
-st.header("📈 Dashboard Estratégico")
+tab1, tab2 = st.tabs(["📁 Informe General y Análisis de Empleados", "💡 Dashboard Estratégico y Simulación"])
 
-filter_text = "toda la plantilla"
-if dept_selection and perfil_selection:
-    filter_text = f"los perfiles '{', '.join(perfil_selection)}' en los departamentos '{', '.join(dept_selection)}'"
-elif dept_selection:
-    filter_text = f"el/los departamento(s) '{', '.join(dept_selection)}'"
-elif perfil_selection:
-    filter_text = f"el/los perfile(s) '{', '.join(perfil_selection)}'"
-st.markdown(f"A continuación se muestran los indicadores clave para **{filter_text}**.")
-
-if df_filtered.empty:
-    st.warning("La selección de filtros no ha devuelto ningún empleado. Por favor, ajusta los filtros.")
-    st.stop()
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("👥 Empleados Analizados", f"{len(df_filtered)}")
-col2.metric("🔥 Riesgo Medio de Abandono", f"{df_filtered['Prob_Abandono'].mean():.1%}")
-col3.metric("😊 Clima Laboral Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
-col4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
-
-# ==========================================
-# 2. Simulador Interactivo de Políticas
-# ==========================================
-st.sidebar.markdown("---")
-st.sidebar.header("🕹️ Simulador de Políticas")
-st.sidebar.caption("Ajusta el impacto estimado de cada política para ver los resultados en tiempo real.")
-form_impact = st.sidebar.slider("Impacto Mejora Formación (%)", 0, 50, 10)
-sal_impact = st.sidebar.slider("Impacto Mejora Salarial (%)", 0, 50, 15)
-
-with st.expander("▶️ Ver Simulación de Políticas Estratégicas"):
-    form_sim = df_filtered['Prob_Abandono'].mean() * (1 - form_impact / 100)
-    sal_sim = df_filtered['Prob_Abandono'].mean() * (1 - sal_impact / 100)
-    both_sim = df_filtered['Prob_Abandono'].mean() * (1 - (form_impact + sal_impact) / 100)
+# --- PESTAÑA 1: INFORME GENERAL ---
+with tab1:
+    st.header("Análisis General de la Plantilla")
+    st.markdown("Esta sección ofrece una visión general y directa del estado de la plantilla, ideal para una primera toma de contacto con los datos.")
     
-    escenarios_sim = {
-        'Estado Actual': df_filtered["Prob_Abandono"].mean(),
-        'Mejora Formación': form_sim,
-        'Mejora Salarial': sal_sim,
-        'Política Combinada': both_sim
-    }
+    if df_filtered.empty:
+        st.warning("La selección de filtros no ha devuelto ningún empleado. Por favor, ajusta los filtros.")
+    else:
+        # --- Gráficas del Informe General ---
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Distribución del Riesgo")
+            fig, ax = plt.subplots()
+            sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue")
+            st.pyplot(fig)
+            st.caption("Muestra cuántos empleados hay en cada nivel de riesgo. Un pico a la derecha es una señal de alerta.")
+        
+        with col2:
+            st.subheader("Riesgo Medio por Departamento")
+            riesgo_dpto = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=True)
+            fig, ax = plt.subplots()
+            riesgo_dpto.plot(kind='barh', ax=ax, color='salmon')
+            st.pyplot(fig)
+            st.caption("Permite identificar rápidamente los departamentos con mayor propensión a la fuga de talento.")
+        
+        st.markdown("---")
+        
+        # --- Consulta Detallada por Empleado ---
+        st.header("Consulta Detallada por Empleado")
+        st.markdown("Selecciona un empleado de la lista (ya filtrada) para ver su ficha completa.")
+        selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index)
+        
+        if selected_id is not None:
+            row = df_filtered.loc[selected_id]
+            st.markdown(f"#### Ficha del Empleado: ID {selected_id}")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"**Departamento**: {row.get('Departamento', 'N/A')} \n **Perfil**: {row.get('Perfil_Empleado', 'N/A')} \n **Edad**: {row.get('Edad', 'N/A')} años \n **Antigüedad**: {row.get('Antigüedad', 'N/A')} años")
+            with c2:
+                st.markdown(f"**Contrato**: {row.get('Tipo_Contrato', 'N/A')} \n **Desempeño**: `{row.get('Desempeño', 'N/A')}/5` \n **Clima Laboral**: `{row.get('Clima_Laboral', 'N/A')}/5`")
 
-    fig_sim, ax_sim = plt.subplots()
-    bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
-    ax_sim.set_title("Impacto Estimado de Políticas en el Riesgo Medio")
-    ax_sim.set_ylabel("Probabilidad Media de Abandono")
-    for bar in bars.patches:
-        ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
-    st.pyplot(fig_sim)
+            riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else ("orange" if row.get('Prob_Abandono', 0) >= 0.4 else "green")
+            st.markdown(f"""
+                <div style="border: 2px solid {riesgo_color}; padding: 15px; border-radius: 10px; margin-top: 15px; background-color: #f8f9fa;">
+                    <h5 style="color:{riesgo_color}; margin-bottom: 5px;">RIESGO DE ABANDONO ESTIMADO: {row.get('Prob_Abandono', 0):.1%}</h5>
+                    <p style="margin-bottom: 0px;"><strong>RECOMENDACIÓN ESTRATÉGICA:</strong> {row.get('Recomendación', 'N/A')}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+# --- PESTAÑA 2: DASHBOARD ESTRATÉGICO ---
+with tab2:
+    st.header("Dashboard Estratégico Interactivo")
     
-    st.caption(f"🔍 **Interpretación:** Aplicando los impactos seleccionados a **{filter_text}**, la política más efectiva sería la **Combinada**, reduciendo el riesgo medio de abandono del **{escenarios_sim['Estado Actual']:.1%}** al **{escenarios_sim['Política Combinada']:.1%}**.")
+    if df_filtered.empty:
+        st.warning("La selección de filtros no ha devuelto ningún empleado. Por favor, ajusta los filtros.")
+    else:
+        # --- KPIs Dinámicos ---
+        st.markdown(f"**Indicadores clave para {filter_text}:**")
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
+        kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
+        kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
+        kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
 
-# ==========================================
-# 3. Análisis Profundo de Perfiles
-# ==========================================
-st.markdown("---")
-st.header("👤 Análisis Profundo de Perfiles")
+        # --- Simulador Interactivo ---
+        st.subheader("🕹️ Simulador de Políticas 'What-If'")
+        sim_col1, sim_col2 = st.columns([1, 2])
+        with sim_col1:
+            st.markdown("Ajusta el impacto esperado de cada política para ver cómo afectaría al riesgo de abandono del grupo seleccionado.")
+            form_impact = st.slider("Impacto por Mejora de Formación (%)", 0, 50, 10)
+            sal_impact = st.slider("Impacto por Mejora Salarial (%)", 0, 50, 15)
+        
+        with sim_col2:
+            form_sim = df_filtered['Prob_Abandono'].mean() * (1 - form_impact / 100)
+            sal_sim = df_filtered['Prob_Abandono'].mean() * (1 - sal_impact / 100)
+            both_sim = df_filtered['Prob_Abandono'].mean() * (1 - (form_impact + sal_impact) / 100)
+            
+            escenarios_sim = {'Estado Actual': df_filtered["Prob_Abandono"].mean(), 'Mejora Formación': form_sim, 'Mejora Salarial': sal_sim, 'Política Combinada': both_sim}
+            
+            fig_sim, ax_sim = plt.subplots()
+            bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
+            for bar in bars.patches:
+                ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
+            ax_sim.set_ylabel("Riesgo Medio de Abandono")
+            st.pyplot(fig_sim)
 
-radar_features = ['Desempeño', 'Clima_Laboral', 'Salario', 'Antigüedad', 'Horas_Extra']
-scaler_radar = MinMaxScaler()
-df_radar = df_sim.copy()
-df_radar[radar_features] = scaler_radar.fit_transform(df_radar[radar_features])
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # --- Análisis de Perfiles con Radar ---
+        st.subheader("👤 Análisis Profundo de Perfiles")
+        radar_features = ['Desempeño', 'Clima_Laboral', 'Salario', 'Antigüedad', 'Horas_Extra']
+        scaler_radar = MinMaxScaler()
+        df_radar = df_sim.copy()
+        df_radar[radar_features] = scaler_radar.fit_transform(df_radar[radar_features])
+        profile_means = df_radar.groupby('Perfil_Empleado')[radar_features].mean()
+        
+        radar_col1, radar_col2 = st.columns([1.5, 2])
+        with radar_col1:
+            profile_to_show = st.selectbox("Selecciona un Perfil para analizar:", options=profile_means.index, key="radar_select")
+        
+        with radar_col2:
+            st.markdown(f"**Análisis del Perfil: '{profile_to_show}'**")
+            st.caption("La gráfica de radar compara las características medias del perfil seleccionado (azul) con la media de toda la empresa (naranja).")
 
-profile_means = df_radar.groupby('Perfil_Empleado')[radar_features].mean()
-total_means = df_radar[radar_features].mean()
-
-col1, col2 = st.columns([1.5, 2])
-with col1:
-    st.markdown("##### Comparativa de Perfiles (Gráfica de Radar)")
-    st.caption("Selecciona un perfil para compararlo con la media de la empresa.")
-    profile_to_show = st.selectbox("Selecciona un Perfil", options=profile_means.index)
-    
-    if profile_to_show:
         fig = go.Figure()
         fig.add_trace(go.Scatterpolar(r=profile_means.loc[profile_to_show].values, theta=radar_features, fill='toself', name=f'Perfil: {profile_to_show}'))
-        fig.add_trace(go.Scatterpolar(r=total_means.values, theta=radar_features, fill='toself', name='Media de la Empresa', fillcolor='rgba(255,165,0,0.2)', line=dict(color='orange')))
-        fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, title=f"Comparativa del Perfil '{profile_to_show}'")
+        fig.add_trace(go.Scatterpolar(r=df_radar[radar_features].mean().values, theta=radar_features, fill='toself', name='Media Empresa', fillcolor='rgba(255,165,0,0.2)', line=dict(color='orange')))
+        fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), showlegend=True, height=400)
         st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    st.markdown("##### Ficha del Perfil Seleccionado")
-    if profile_to_show:
-        grupo = df_sim[df_sim["Perfil_Empleado"] == profile_to_show]
-        st.subheader(f"Perfil: '{profile_to_show}'")
-        st.metric("Número de Empleados", f"{len(grupo)}")
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Riesgo Medio de Abandono", f"{grupo['Prob_Abandono'].mean():.1%}")
-        c2.metric("Salario Medio", f"€{grupo['Salario'].mean():,.0f}")
-        
-        st.markdown(f"**Recomendación estratégica principal para este grupo:**")
-        st.info(f"{grupo['Recomendación'].mode()[0]}")
-    
-    st.caption("🔍 **Interpretación:** La gráfica de radar permite identificar visualmente las características que definen a cada perfil. Compara el polígono azul (perfil) con el naranja (media de la empresa). Un pico en 'Salario' significa que ese perfil gana más que la media; un pico bajo en 'Clima_Laboral' indica que están menos satisfechos que el promedio.")
