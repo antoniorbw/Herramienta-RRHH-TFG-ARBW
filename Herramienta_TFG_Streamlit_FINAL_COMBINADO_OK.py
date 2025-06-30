@@ -37,6 +37,7 @@ def create_template_csv():
         'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal']
     }
     df_template = pd.DataFrame(template_data)
+    # Usamos punto y coma como separador
     return df_template.to_csv(index=False, sep=';').encode('utf-8')
 
 csv_template = create_template_csv()
@@ -46,6 +47,7 @@ st.sidebar.download_button(
    file_name='plantilla_datos_empleados.csv',
    mime='text/csv',
 )
+st.sidebar.caption("Nota: Si al abrir en Excel los datos no se separan en columnas, utiliza la opción 'Datos' -> 'Desde texto/CSV' y elige 'Punto y coma' como delimitador.")
 
 # --- Carga de datos ---
 st.sidebar.header("📤 Carga de Datos del Usuario")
@@ -109,7 +111,7 @@ try:
     df_sim["Perfil_Empleado"] = pd.Series(clusters).map(perfil_dict)
 
 except Exception as e:
-    st.error(f"Ha ocurrido un error al procesar el archivo: {e}")
+    st.error(f"Ha ocurrido un error al procesar el archivo. Asegúrate de que usa ';' como separador. Error: {e}")
     st.stop()
 
 st.success(f"✅ Archivo **{uploaded_file.name}** cargado y procesado correctamente. Se han analizado **{len(df)}** empleados.")
@@ -210,14 +212,18 @@ with col1:
 
 with col2:
     st.markdown("##### Resumen de los Perfiles")
-    for perfil in sorted(df_sim["Perfil_Empleado"].unique()):
-        grupo = df_sim[df_sim["Perfil_Empleado"] == perfil]
-        with st.expander(f"**Perfil: '{perfil}'** ({len(grupo)} empleados)"):
-            st.markdown(f"- **Riesgo de Abandono Medio**: `{grupo['Prob_Abandono'].mean():.1%}`")
-            st.markdown(f"- **Clima Laboral Medio**: `{grupo['Clima_Laboral'].mean():.1f}/5`")
-            st.markdown(f"- **Antigüedad Media**: `{grupo['Antigüedad'].mean():.1f} años`")
-            st.markdown(f"- **Desempeño Medio**: `{grupo['Desempeño'].mean():.1f}/5`")
-            st.markdown(f"- **Recomendación Clave**: _{grupo['Recomendación'].mode()[0]}_")
+    if df_sim["Perfil_Empleado"].notna().all():
+        for perfil in sorted(df_sim["Perfil_Empleado"].unique()):
+            grupo = df_sim[df_sim["Perfil_Empleado"] == perfil]
+            with st.expander(f"**Perfil: '{perfil}'** ({len(grupo)} empleados)"):
+                st.markdown(f"- **Riesgo de Abandono Medio**: `{grupo['Prob_Abandono'].mean():.1%}`")
+                st.markdown(f"- **Clima Laboral Medio**: `{grupo['Clima_Laboral'].mean():.1f}/5`")
+                st.markdown(f"- **Antigüedad Media**: `{grupo['Antigüedad'].mean():.1f} años`")
+                st.markdown(f"- **Desempeño Medio**: `{grupo['Desempeño'].mean():.1f}/5`")
+                if not grupo['Recomendación'].mode().empty:
+                    st.markdown(f"- **Recomendación Clave**: _{grupo['Recomendación'].mode()[0]}_")
+    else:
+        st.warning("No se pudo generar el resumen de perfiles debido a valores nulos.")
 
 st.header("5. Desglose Detallado por Empleado")
 st.markdown("Utiliza el selector para ver el análisis individual de cada empleado.")
@@ -229,24 +235,24 @@ if selected_id is not None:
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"**Departamento**: {row['Departamento']}")
-        st.markdown(f"**Perfil Asignado**: {row['Perfil_Empleado']}")
-        st.markdown(f"**Edad**: {row['Edad']} años")
-        st.markdown(f"**Antigüedad**: {row['Antigüedad']} años")
-        st.markdown(f"**Contrato**: {row['Tipo_Contrato']}")
+        st.markdown(f"**Departamento**: {row.get('Departamento', 'N/A')}")
+        st.markdown(f"**Perfil Asignado**: {row.get('Perfil_Empleado', 'N/A')}")
+        st.markdown(f"**Edad**: {row.get('Edad', 'N/A')} años")
+        st.markdown(f"**Antigüedad**: {row.get('Antigüedad', 'N/A')} años")
+        st.markdown(f"**Contrato**: {row.get('Tipo_Contrato', 'N/A')}")
 
     with col2:
-        st.markdown(f"**Desempeño**: `{row['Desempeño']}/5`")
-        st.markdown(f"**Clima Laboral**: `{row['Clima_Laboral']}/5`")
-        st.markdown(f"**Horas Extra (media)**: {row['Horas_Extra']}h")
-        st.markdown(f"**Bajas Último Año**: {row['Bajas_Último_Año']}")
-        st.markdown(f"**Promociones (2 años)**: {row['Promociones_2_Años']}")
+        st.markdown(f"**Desempeño**: `{row.get('Desempeño', 'N/A')}/5`")
+        st.markdown(f"**Clima Laboral**: `{row.get('Clima_Laboral', 'N/A')}/5`")
+        st.markdown(f"**Horas Extra (media)**: {row.get('Horas_Extra', 'N/A')}h")
+        st.markdown(f"**Bajas Último Año**: {row.get('Bajas_Último_Año', 'N/A')}")
+        st.markdown(f"**Promociones (2 años)**: {row.get('Promociones_2_Años', 'N/A')}")
 
-    riesgo_color = "red" if row['Prob_Abandono'] >= 0.6 else ("orange" if row['Prob_Abandono'] >= 0.3 else "green")
+    riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.6 else ("orange" if row.get('Prob_Abandono', 0) >= 0.3 else "green")
     st.markdown(f"""
         <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; margin-top: 15px;">
-            <h4 style="color:{riesgo_color};">RIESGO DE ABANDONO ESTIMADO: {row['Prob_Abandono']:.1%}</h4>
-            <p><strong>RECOMENDACIÓN ESTRATÉGICA:</strong> {row['Recomendación']}</p>
+            <h4 style="color:{riesgo_color};">RIESGO DE ABANDONO ESTIMADO: {row.get('Prob_Abandono', 0):.1%}</h4>
+            <p><strong>RECOMENDACIÓN ESTRATÉGICA:</strong> {row.get('Recomendación', 'N/A')}</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -257,7 +263,6 @@ if selected_id is not None:
 st.sidebar.markdown("---")
 st.sidebar.header("📄 Descargar Informe PDF")
 
-@st.cache_data
 def generate_pdf_report(_df_sim, _escenarios_sim, _df_pca):
     os.makedirs("temp_img", exist_ok=True)
     pdf = FPDF()
@@ -267,10 +272,10 @@ def generate_pdf_report(_df_sim, _escenarios_sim, _df_pca):
     pdf.cell(0, 10, "Informe Gráfico de Análisis de Plantilla", ln=True, align="C")
     
     # Guardar figuras
-    fig1, ax1 = plt.subplots(); sns.histplot(_df_sim['Prob_Abandono'], bins=20, kde=True, ax=ax1, color="skyblue"); ax1.set_title("Distribución del Riesgo"); plt.savefig("temp_img/riesgo.png"); plt.close(fig1)
-    fig2, ax2 = plt.subplots(); sns.barplot(x=list(_escenarios_sim.keys()), y=list(_escenarios_sim.values()), palette="viridis", ax=ax2); ax2.set_title("Simulación de Políticas"); plt.savefig("temp_img/simulacion.png"); plt.close(fig2)
-    fig3, ax3 = plt.subplots(); _df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax3, color='salmon'); ax3.set_title("Riesgo por Departamento"); plt.savefig("temp_img/riesgo_depto.png"); plt.close(fig3)
-    fig4, ax4 = plt.subplots(); sns.scatterplot(data=_df_pca, x="PCA1", y="PCA2", hue="Perfil", palette="Set2", s=80, ax=ax4); ax4.grid(True); ax4.set_title("Perfiles de Empleados (PCA)"); plt.savefig("temp_img/pca.png"); plt.close(fig4)
+    fig1, ax1 = plt.subplots(); sns.histplot(_df_sim['Prob_Abandono'], bins=20, kde=True, ax=ax1, color="skyblue"); ax1.set_title("Distribución del Riesgo"); plt.tight_layout(); plt.savefig("temp_img/riesgo.png"); plt.close(fig1)
+    fig2, ax2 = plt.subplots(); sns.barplot(x=list(_escenarios_sim.keys()), y=list(_escenarios_sim.values()), palette="viridis", ax=ax2); ax2.set_title("Simulación de Políticas"); plt.tight_layout(); plt.savefig("temp_img/simulacion.png"); plt.close(fig2)
+    fig3, ax3 = plt.subplots(); _df_sim.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax3, color='salmon'); ax3.set_title("Riesgo por Departamento"); plt.tight_layout(); plt.savefig("temp_img/riesgo_depto.png"); plt.close(fig3)
+    fig4, ax4 = plt.subplots(); sns.scatterplot(data=_df_pca, x="PCA1", y="PCA2", hue="Perfil", palette="Set2", s=80, ax=ax4); ax4.grid(True); ax4.set_title("Perfiles de Empleados (PCA)"); plt.tight_layout(); plt.savefig("temp_img/pca.png"); plt.close(fig4)
     
     figures = {"Distribución del Riesgo": "temp_img/riesgo.png", "Simulación de Políticas": "temp_img/simulacion.png", "Riesgo por Departamento": "temp_img/riesgo_depto.png", "Perfiles de Empleados (PCA)": "temp_img/pca.png"}
 
@@ -283,11 +288,17 @@ def generate_pdf_report(_df_sim, _escenarios_sim, _df_pca):
         
     return pdf.output(dest='S').encode('latin-1')
 
-if st.sidebar.button("Generar y Descargar PDF"):
-    pdf_data = generate_pdf_report(df_sim, escenarios_sim, df_pca)
+# --- LÓGICA DE BOTONES DE DESCARGA MEJORADA ---
+if st.sidebar.button("Generar Informe en PDF"):
+    # Genera el PDF y lo guarda en el estado de la sesión
+    st.session_state.pdf_report_data = generate_pdf_report(df_sim, escenarios_sim, df_pca)
+    st.sidebar.success("¡Informe PDF generado!")
+
+# Muestra el botón de descarga SOLO si el informe ha sido generado
+if 'pdf_report_data' in st.session_state and st.session_state.pdf_report_data:
     st.sidebar.download_button(
-        label="✅ ¡Listo! Haz clic para descargar",
-        data=pdf_data,
+        label="✅ Descargar Informe PDF",
+        data=st.session_state.pdf_report_data,
         file_name=f"informe_grafico_RRHH_{datetime.today().strftime('%Y%m%d')}.pdf",
         mime="application/pdf"
     )
