@@ -23,6 +23,7 @@ st.set_page_config(page_title="Herramienta IA Estratégica - RRHH", layout="wide
 # ==========================================
 # Funciones de Generación de Informes
 # ==========================================
+
 def generate_pdf_of_graphs(df_report, model, feature_names):
     if not os.path.exists("temp_img"):
         os.makedirs("temp_img")
@@ -44,7 +45,8 @@ def generate_pdf_of_graphs(df_report, model, feature_names):
     for title, path in [("Distribucion del Riesgo de Abandono", "temp_img/riesgo_dist.png"), 
                          ("Impulsores Clave del Riesgo", "temp_img/impulsores.png"), 
                          ("Riesgo Medio por Departamento", "temp_img/riesgo_depto.png")]:
-        pdf.add_page(); pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, title, ln=True, align='C'); pdf.image(path, w=180)
+        if os.path.exists(path):
+            pdf.add_page(); pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, title, ln=True, align='C'); pdf.image(path, w=180)
         
     return pdf.output(dest='S').encode('latin-1')
 
@@ -136,6 +138,36 @@ def process_data(_df):
     return df_sim, None, model, X, X_scaled
 
 # ==========================================
+# Barra Lateral (Sidebar)
+# ==========================================
+st.sidebar.title("⚙️ Panel de Control")
+
+# --- Descarga de plantilla CSV ---
+@st.cache_data
+def create_template_csv():
+    template_data = {
+        'Edad': [35, 42, 28, 50, 31, 25, 38, 45, 29, 33], 'Antigüedad': [5, 10, 2, 20, 3, 1, 8, 15, 4, 6],
+        'Desempeño': [3, 4, 5, 4, 2, 4, 3, 5, 2, 4], 'Salario': [35000, 55000, 60000, 75000, 32000, 40000, 48000, 85000, 33000, 45000],
+        'Formación_Reciente': [1, 0, 1, 0, 1, 0, 1, 1, 0, 1], 'Clima_Laboral': [3, 4, 5, 2, 1, 4, 3, 5, 2, 4],
+        'Departamento': ['Ventas', 'TI', 'Marketing', 'Ventas', 'TI', 'Marketing', 'Producción', 'Producción', 'RRHH', 'RRHH'],
+        'Riesgo_Abandono': [0, 1, 0, 1, 1, 0, 0, 0, 1, 0], 'Horas_Extra': [5, 2, 0, 8, 10, 1, 4, 0, 6, 2],
+        'Bajas_Último_Año': [1, 0, 0, 2, 3, 0, 1, 0, 2, 0], 'Promociones_2_Años': [0, 1, 1, 0, 0, 0, 1, 1, 0, 1],
+        'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal', 'Indefinido', 'Indefinido', 'Indefinido', 'Temporal', 'Indefinido']
+    }
+    df_template = pd.DataFrame(template_data)
+    return df_template.to_csv(index=False, sep=';').encode('utf-8')
+
+st.sidebar.download_button(
+   label="📥 Descargar plantilla de ejemplo",
+   data=create_template_csv(),
+   file_name='plantilla_datos_empleados.csv',
+   mime='text/csv',
+)
+
+# --- Carga de datos ---
+uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
+
+# ==========================================
 # Cuerpo Principal
 # ==========================================
 st.title("🚀 Herramienta IA de Planificación Estratégica de RRHH")
@@ -150,8 +182,6 @@ try:
 
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
-
-    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
 
     # --- Filtros ---
     st.sidebar.markdown("---")
@@ -184,7 +214,6 @@ try:
 
     if 'download_data' in st.session_state and st.session_state.download_data:
         st.sidebar.download_button("✅ ¡Listo! Haz clic para descargar", **st.session_state.download_data)
-
 
     # ==========================================
     # ESTRUCTURA DE PESTAÑAS (COMPLETA)
