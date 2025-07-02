@@ -101,10 +101,23 @@ def process_data(_df):
 # ==========================================
 # Cuerpo Principal
 # ==========================================
-st.title("🚀 Herramienta IA de Planificación Estratégica de RRHH")
+# TÍTULO CORREGIDO
+st.title("Aplicación de IA para la Planificación Estratégica de la Plantilla")
+st.caption("Creado por Antonio Wilkinson para el Trabajo de Fin de Grado: 'Desarrollo de una aplicación de Inteligencia Artificial para la planificación estratégica de la plantilla'")
+st.markdown("---")
+
+with st.expander("👋 ¡Bienvenido/a! Haz clic aquí para ver las instrucciones", expanded=True):
+    st.markdown("""
+    Esta aplicación te permite analizar los datos de tus empleados para obtener información valiosa y tomar decisiones estratégicas basadas en datos.
+
+    #### ¿Cómo empezar?
+    1.  **Descarga la plantilla (opcional):** En la **barra lateral de la izquierda**, encontrarás un botón para descargar un archivo CSV de ejemplo. Úsalo como guía para formatear tus propios datos.
+    2.  **Sube tu archivo:** Usa el botón "Sube tu archivo CSV aquí" en la misma barra lateral para cargar los datos de tu plantilla.
+    3.  **Explora los resultados:** Una vez cargado el archivo, la aplicación generará automáticamente un análisis completo distribuido en las siguientes pestañas.
+    """)
 
 if uploaded_file is None:
-    st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda.")
+    st.warning("Por favor, sube un archivo CSV desde la barra lateral para comenzar el análisis.")
     st.stop()
 
 try:
@@ -140,10 +153,10 @@ try:
 
     # --- PESTAÑA 1: DASHBOARD PRINCIPAL ---
     with tab1:
+        # ... (Contenido completo de la Pestaña 1)
         st.header("Dashboard y Resumen Ejecutivo")
         filter_text = "toda la plantilla"
         if dept_selection != 'Todos' or perfil_selection != 'Todos': filter_text = "la selección filtrada"
-        
         if df_filtered.empty:
             st.warning("La selección de filtros no ha devuelto ningún empleado.")
         else:
@@ -153,45 +166,28 @@ try:
             kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
             kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
             kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
-            
             st.markdown("---")
-            
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("Distribución del Riesgo de Abandono")
                 fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
-                with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.")
-                    mean_risk = df_filtered['Prob_Abandono'].mean()
-                    if mean_risk > 0.6:
-                        st.error(f"**¿Qué está pasando en tus datos?:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
-                    else:
-                        st.success(f"**¿Qué está pasando en tus datos?:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
-                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda.")
-
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
                 top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
                 for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
-                    st.markdown(f"""
-                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
+                    st.markdown(f"""<div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
                         <small><i>{row['Recomendación']}</i></small>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
+                    </div>""", unsafe_allow_html=True)
             st.markdown("---")
             st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
             importances = pd.DataFrame(data={'Attribute': X_train_df.columns, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=True).tail(10)
             fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
-            with st.expander("Ver Análisis Detallado"):
-                top_feature = importances.iloc[-1]['Attribute'].replace('_', ' ')
-                st.info(f"**Análisis:** El factor más determinante para predecir el abandono en tu empresa es **'{top_feature}'**.")
-                st.markdown("**Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.")
 
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
     with tab2:
+        # ... (Contenido completo de la Pestaña 2)
         st.header("Análisis por Segmentos (Perfiles y Departamentos)")
         if df_filtered.empty: st.warning("No hay empleados que coincidan con los filtros.")
         else:
@@ -210,14 +206,6 @@ try:
                     st.pyplot(fig)
                 else:
                     st.info("No se puede generar la gráfica de clusters con menos de dos empleados.")
-                
-                with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** Una representación visual de los perfiles de empleados. Cada punto es una persona.")
-                    if not df_filtered.empty:
-                        largest_cluster = df_filtered['Perfil_Empleado'].mode()[0]
-                        st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. La separación visual entre los colores indica si la segmentación es clara.")
-                    st.markdown("**Recomendaciones:** Utiliza esta vista para confirmar la validez de los perfiles. Un perfil de 'En Riesgo' que aparece visualmente separado del resto refuerza la necesidad de estrategias diferenciadas.")
-
             with col2:
                 st.markdown("##### Resumen de Perfiles Identificados")
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
@@ -226,39 +214,25 @@ try:
                         st.markdown(f"Riesgo medio de **{grupo['Prob_Abandono'].mean():.1%}** y clima de **{grupo['Clima_Laboral'].mean():.1f}/5**.")
                         if not grupo['Recomendación'].mode().empty:
                             st.info(f"**Recomendación principal:** {grupo['Recomendación'].mode().iloc[0]}")
-            
             st.markdown("---")
             st.subheader("Análisis por Departamento")
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
-                with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
-                    if len(df_filtered['Departamento'].unique()) > 1:
-                        clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
-                        st.warning(f"**Análisis:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
-                    st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
-                with st.expander("Ver Análisis Detallallado"):
-                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
-                    if len(df_filtered['Departamento'].unique()) > 1:
-                        risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
-                        st.error(f"**Análisis:** El departamento con mayor riesgo es **'{risk_stats.index[-1]}'** ({risk_stats.iloc[-1]:.1%}).")
-                    st.markdown("**Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo.")
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
+        # ... (Contenido completo de la Pestaña 3)
         st.header("Consulta Individual y Simulación de Políticas")
         if df_filtered.empty: st.warning("No hay empleados que coincidan con los filtros.")
         else:
             st.subheader("Análisis Individual Detallado (XAI)")
             st.markdown("Selecciona un empleado para ver su ficha y los factores que determinan su riesgo.")
-            
             selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index, key="employee_selector")
-            
             if selected_id is not None:
                 row = df_filtered.loc[selected_id]
                 riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else ("orange" if row.get('Prob_Abandono', 0) >= 0.4 else "green")
@@ -266,11 +240,9 @@ try:
                     <h5 style="color:{riesgo_color}; margin-bottom: 5px;">RIESGO DE ABANDONO (ID {selected_id}): {row.get('Prob_Abandono', 0):.1%}</h5>
                     <p style="margin-bottom: 0px;"><strong>RECOMENDACIÓN:</strong> {row.get('Recomendación', 'N/A')}</p>
                 </div>""", unsafe_allow_html=True)
-
                 st.markdown("##### ¿Por qué tiene este nivel de riesgo?")
                 employee_index_in_original_df = df_sim.index.get_loc(selected_id)
                 employee_scaled_data = X_scaled_full[employee_index_in_original_df]
-                
                 contributions = employee_scaled_data * model.coef_[0]
                 feature_contribution = pd.DataFrame({'feature': X_train_df.columns, 'contribution': contributions}).sort_values(by='contribution', ascending=False)
                 c1, c2 = st.columns(2)
@@ -280,7 +252,6 @@ try:
                 with c2:
                     st.markdown("🟢 **Factores que REDUCEN el riesgo:**")
                     for i, rec in feature_contribution.tail(3).sort_values(by='contribution').iterrows(): st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
-            
             st.markdown("---")
             st.subheader("🕹️ Simulador de Políticas 'What-If'")
             sim_col1, sim_col2 = st.columns([1, 2])
@@ -297,24 +268,10 @@ try:
                 fig_sim, ax_sim = plt.subplots(); bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
                 for bar in bars.patches: ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
                 ax_sim.set_ylabel("Riesgo Medio de Abandono"); st.pyplot(fig_sim)
-            
-            with st.expander("Ver Análisis Detallado de Escenarios y Recomendaciones"):
-                st.markdown(f"""
-                #### Análisis del Escenario: Mejora de Formación
-                - **Resultado:** Con una reducción de riesgo del **{form_impact}%**, el riesgo medio del grupo bajaría a **{form_sim:.1%}**.
-                - **Recomendación:** Aplicar en perfiles "Potencial Crecimiento" o con bajo "Desempeño".
-                ---
-                #### Análisis del Escenario: Mejora Salarial
-                - **Resultado:** Con una reducción de riesgo del **{sal_impact}%**, el riesgo medio bajaría a **{sal_sim:.1%}**.
-                - **Recomendación:** Aplicar en perfiles "Alto Desempeño" en riesgo o para corregir inequidades.
-                ---
-                #### Análisis del Escenario: Política Combinada
-                - **Resultado:** Es la más efectiva, reduciendo el riesgo al **{both_sim:.1%}**.
-                - **Recomendación:** Usar para grupos críticos y valiosos, como los perfiles "En Riesgo" con buen desempeño.
-                """)
 
     # --- PESTAÑA 4: GLOSARIO Y METODOLOGÍA ---
     with tab4:
+        # ... (Contenido completo de la Pestaña 4)
         st.header("📚 Glosario y Metodología")
         st.subheader("Glosario de Términos Clave")
         st.markdown("""
@@ -340,4 +297,3 @@ try:
 
 except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
-    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias.")
