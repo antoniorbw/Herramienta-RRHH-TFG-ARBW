@@ -103,9 +103,21 @@ def process_data(_df):
 # ==========================================
 st.title("Aplicación de IA para la Planificación Estratégica de la Plantilla")
 st.caption("Creado por Antonio Wilkinson para el Trabajo de Fin de Grado: 'Desarrollo de una aplicación de Inteligencia Artificial para la planificación estratégica de la plantilla'")
+st.markdown("---")
+
+# --- INSTRUCCIONES ---
+with st.expander("👋 ¡Bienvenido/a! Haz clic aquí para ver las instrucciones", expanded=True):
+    st.markdown("""
+    Esta aplicación te permite analizar los datos de tus empleados para obtener información valiosa y tomar decisiones estratégicas basadas en datos.
+
+    #### ¿Cómo empezar?
+    1.  **Descarga la plantilla (opcional):** En la **barra lateral de la izquierda**, encontrarás un botón para descargar un archivo CSV de ejemplo. Úsalo como guía para formatear tus propios datos.
+    2.  **Sube tu archivo:** Usa el botón "Sube tu archivo CSV aquí" en la misma barra lateral para cargar los datos de tu plantilla.
+    3.  **Explora los resultados:** Una vez cargado el archivo, la aplicación generará automáticamente un análisis completo distribuido en las siguientes pestañas.
+    """)
 
 if uploaded_file is None:
-    st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda.")
+    st.warning("Por favor, sube un archivo CSV desde la barra lateral para comenzar el análisis.")
     st.stop()
 
 try:
@@ -176,7 +188,7 @@ try:
                 for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                     st.markdown(f"""
-                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #262730;">
+                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
                         <small><i>{row['Recomendación']}</i></small>
                     </div>
@@ -211,6 +223,12 @@ try:
                     st.pyplot(fig)
                 else:
                     st.info("No se puede generar la gráfica de clusters con menos de dos empleados.")
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** Una representación visual de los perfiles de empleados. Cada punto es una persona.")
+                    if not df_filtered.empty:
+                        largest_cluster = df_filtered['Perfil_Empleado'].mode()[0]
+                        st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. La separación visual entre los colores indica si la segmentación es clara.")
+                    st.markdown("**Recomendaciones:** Utiliza esta vista para confirmar la validez de los perfiles. Un perfil de 'En Riesgo' que aparece visualmente separado del resto refuerza la necesidad de estrategias diferenciadas.")
             with col2:
                 st.markdown("##### Resumen de Perfiles Identificados")
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
@@ -230,7 +248,7 @@ try:
                     st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
                     if len(df_filtered['Departamento'].unique()) > 1:
                         clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
-                        st.warning(f"**¿Qué está pasando en tus datos?:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
+                        st.warning(f"**Análisis:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
                     st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
@@ -312,7 +330,7 @@ try:
         st.subheader("Glosario de Términos Clave")
         st.markdown("""
         - **KPI (Key Performance Indicator):** Indicador Clave de Rendimiento. Son las métricas más importantes que resumen la situación general (ej. Riesgo Medio).
-        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa, calculado por el modelo de IA.
+        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa.
         - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares. En este análisis se identifican 4 perfiles principales:
             - `Alto Desempeño:` Empleados con buen rendimiento, pero que pueden estar en riesgo si no se sienten valorados o retados.
             - `Potencial Crecimiento:` Empleados leales y con buen clima, pero quizás con un desempeño que se puede potenciar.
@@ -327,10 +345,9 @@ try:
         st.markdown("""
         1.  **Preparación de Datos:** Se transforman las variables categóricas (como Departamento) en un formato numérico que el modelo pueda entender (`One-Hot Encoding`).
         2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo. Esto es crucial para algoritmos como K-Means.
-        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad, lo que permite realizar el análisis de impulsores y XAI.
+        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad.
         4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa.
         """)
 
 except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
-    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias.")
