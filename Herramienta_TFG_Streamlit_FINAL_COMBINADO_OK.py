@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import plotly.graph_objects as go
+from fpdf import FPDF
 import os
 import io
 
@@ -113,8 +114,6 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
-    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
-
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -173,10 +172,12 @@ try:
                 top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
                 for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
-                    st.markdown(f"""<div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
+                    st.markdown(f"""
+                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
                         <small><i>{row['Recomendación']}</i></small>
-                    </div>""", unsafe_allow_html=True)
+                    </div>
+                    """, unsafe_allow_html=True)
             
             st.markdown("---")
             st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
@@ -184,8 +185,7 @@ try:
             fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
             with st.expander("Ver Análisis Detallado"):
                 top_feature = importances.iloc[-1]['Attribute'].replace('_', ' ')
-                st.markdown("**¿Qué estamos viendo?:** Los factores que el modelo de IA considera más importantes para predecir el abandono.")
-                st.info(f"**¿Qué está pasando en tus datos?:** El factor más determinante para predecir el abandono en tu empresa es **'{top_feature}'**.")
+                st.info(f"**Análisis:** El factor más determinante para predecir el abandono en tu empresa es **'{top_feature}'**.")
                 st.markdown("**Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.")
 
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
@@ -206,6 +206,8 @@ try:
                     df_pca["Perfil"] = df_filtered["Perfil_Empleado"]
                     fig, ax = plt.subplots(); sns.scatterplot(data=df_pca, x="PCA1", y="PCA2", hue="Perfil", palette="Set2", s=80, ax=ax); ax.grid(True)
                     st.pyplot(fig)
+                else:
+                    st.info("No se puede generar la gráfica de clusters con menos de dos empleados.")
             with col2:
                 st.markdown("##### Resumen de Perfiles Identificados")
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
@@ -225,7 +227,7 @@ try:
                     st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
                     if len(df_filtered['Departamento'].unique()) > 1:
                         clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
-                        st.warning(f"**¿Qué está pasando en tus datos?:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
+                        st.warning(f"**Análisis:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
                     st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
@@ -234,7 +236,7 @@ try:
                     st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
                     if len(df_filtered['Departamento'].unique()) > 1:
                         risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
-                        st.error(f"**¿Qué está pasando en tus datos?:** El departamento con mayor riesgo es **'{risk_stats.index[-1]}'** ({risk_stats.iloc[-1]:.1%}).")
+                        st.error(f"**Análisis:** El departamento con mayor riesgo es **'{risk_stats.index[-1]}'** ({risk_stats.iloc[-1]:.1%}).")
                     st.markdown("**Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo.")
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
@@ -306,24 +308,26 @@ try:
         st.header("📚 Glosario y Metodología")
         st.subheader("Glosario de Términos Clave")
         st.markdown("""
-        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa.
+        - **KPI (Key Performance Indicator):** Indicador Clave de Rendimiento. Son las métricas más importantes que resumen la situación general (ej. Riesgo Medio).
+        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa, calculado por el modelo de IA.
         - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares. En este análisis se identifican 4 perfiles principales:
             - `Alto Desempeño:` Empleados con buen rendimiento, pero que pueden estar en riesgo si no se sienten valorados o retados.
             - `Potencial Crecimiento:` Empleados leales y con buen clima, pero quizás con un desempeño que se puede potenciar.
             - `Bajo Compromiso:` Suelen ser empleados más jóvenes, con bajo clima y alto riesgo. Requieren una intervención para mejorar su integración.
             - `En Riesgo:` El grupo más crítico. Combinan varios factores negativos que disparan su probabilidad de abandono.
         - **Impulsores Clave (Feature Importance):** Los factores o variables que más peso tienen para el modelo a la hora de hacer una predicción.
-        - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto.
+        - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto (ej. por qué un empleado tiene un riesgo alto).
         - **Análisis de Componentes Principales (PCA):** Técnica de reducción de dimensiones usada para visualizar los clusters en un mapa 2D.
         - **StandardScaler:** Proceso técnico para estandarizar las variables numéricas (como Salario y Edad) para que tengan la misma escala y peso en los modelos.
         """)
-        st.subheader("Metodología del Modelo")
+        st.subheader("Metodología del Modelo - Paso a Paso")
         st.markdown("""
         1.  **Preparación de Datos:** Se transforman las variables categóricas (como Departamento) en un formato numérico que el modelo pueda entender (`One-Hot Encoding`).
-        2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo.
-        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad.
-        4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa.
+        2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo. Esto es crucial para algoritmos como K-Means.
+        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad, lo que permite realizar el análisis de impulsores y XAI.
+        4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa. El número de clusters (4) se elige para obtener una segmentación significativa y accionable.
         """)
 
 except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
+    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias.")
