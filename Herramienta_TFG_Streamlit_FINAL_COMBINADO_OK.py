@@ -114,6 +114,8 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
+    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
+
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -159,8 +161,8 @@ try:
                 st.subheader("Distribución del Riesgo de Abandono")
                 fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
                 with st.expander("Ver Análisis Detallado"):
-                    mean_risk = df_filtered['Prob_Abandono'].mean()
                     st.markdown("**¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.")
+                    mean_risk = df_filtered['Prob_Abandono'].mean()
                     if mean_risk > 0.6:
                         st.error(f"**¿Qué está pasando en tus datos?:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
                     else:
@@ -208,6 +210,14 @@ try:
                     st.pyplot(fig)
                 else:
                     st.info("No se puede generar la gráfica de clusters con menos de dos empleados.")
+                
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** Una representación visual de los perfiles de empleados. Cada punto es una persona.")
+                    if not df_filtered.empty:
+                        largest_cluster = df_filtered['Perfil_Empleado'].mode()[0]
+                        st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. La separación visual entre los colores indica si la segmentación es clara.")
+                    st.markdown("**Recomendaciones:** Utiliza esta vista para confirmar la validez de los perfiles. Un perfil de 'En Riesgo' que aparece visualmente separado del resto refuerza la necesidad de estrategias diferenciadas.")
+
             with col2:
                 st.markdown("##### Resumen de Perfiles Identificados")
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
@@ -232,7 +242,7 @@ try:
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
-                with st.expander("Ver Análisis Detallado"):
+                with st.expander("Ver Análisis Detallallado"):
                     st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
                     if len(df_filtered['Departamento'].unique()) > 1:
                         risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
@@ -316,7 +326,7 @@ try:
             - `Bajo Compromiso:` Suelen ser empleados más jóvenes, con bajo clima y alto riesgo. Requieren una intervención para mejorar su integración.
             - `En Riesgo:` El grupo más crítico. Combinan varios factores negativos que disparan su probabilidad de abandono.
         - **Impulsores Clave (Feature Importance):** Los factores o variables que más peso tienen para el modelo a la hora de hacer una predicción.
-        - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto (ej. por qué un empleado tiene un riesgo alto).
+        - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto.
         - **Análisis de Componentes Principales (PCA):** Técnica de reducción de dimensiones usada para visualizar los clusters en un mapa 2D.
         - **StandardScaler:** Proceso técnico para estandarizar las variables numéricas (como Salario y Edad) para que tengan la misma escala y peso en los modelos.
         """)
@@ -325,7 +335,7 @@ try:
         1.  **Preparación de Datos:** Se transforman las variables categóricas (como Departamento) en un formato numérico que el modelo pueda entender (`One-Hot Encoding`).
         2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo. Esto es crucial para algoritmos como K-Means.
         3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad, lo que permite realizar el análisis de impulsores y XAI.
-        4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa. El número de clusters (4) se elige para obtener una segmentación significativa y accionable.
+        4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa.
         """)
 
 except Exception as e:
