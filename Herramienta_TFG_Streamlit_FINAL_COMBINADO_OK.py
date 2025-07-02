@@ -148,139 +148,138 @@ try:
     ])
 
    # --- PESTAÑA 1: DASHBOARD PRINCIPAL ---
-with tab1:
-    st.header("Dashboard y Resumen Ejecutivo")
-    filter_text = "toda la plantilla"
-    if dept_selection != 'Todos' or perfil_selection != 'Todos':
-        filter_text = "la selección filtrada"
-    
-    if df_filtered.empty:
-        st.warning("La selección de filtros no ha devuelto ningún empleado.")
-    else:
-        st.markdown(f"A continuación se muestran los indicadores clave y el resumen ejecutivo para **{filter_text}**.")
-        
-        # KPIs
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
-        kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
-        kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
-        kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
-        
-        st.markdown("---")
-        
-        # Gráficos de Composición y Riesgo
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Distribución de Perfiles")
-            perfil_counts = df_filtered['Perfil_Empleado'].value_counts()
-            fig_pie = go.Figure(data=[go.Pie(labels=perfil_counts.index, values=perfil_counts.values, hole=.3)])
-            fig_pie.update_layout(height=350, margin=dict(l=0, r=0, t=40, b=0), title_text="Composición de la Plantilla por Perfil")
-            st.plotly_chart(fig_pie, use_container_width=True)
-            with st.expander("Ver Análisis Detallado"):
-                st.markdown("**¿Qué estamos viendo?:** La proporción de cada perfil de empleado dentro del grupo seleccionado.")
-                largest_cluster = perfil_counts.idxmax()
-                st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. Conocer la composición de la plantilla ayuda a enfocar las estrategias de RRHH.")
-                st.markdown("**Recomendaciones:** Si un perfil de alto riesgo (como 'En Riesgo' o 'Bajo Compromiso') es mayoritario, se requieren acciones urgentes de retención.")
+# --- PESTAÑA 1: DASHBOARD PRINCIPAL ---
+	# NOTA: Todo este bloque ha sido "indentado" (movido a la derecha) para que esté DENTRO del try.
+    with tab1:
+		st.header("Dashboard y Resumen Ejecutivo")
+		filter_text = "toda la plantilla"
+		if dept_selection != 'Todos' or perfil_selection != 'Todos':
+			filter_text = "la selección filtrada"
 
-        with col2:
-            st.subheader("Distribución del Riesgo de Abandono")
-            bins = [0, 0.3, 0.7, 1.0]
-            labels = ['Bajo (<30%)', 'Medio (30-70%)', 'Alto (>70%)']
-            df_filtered['RiskCategory'] = pd.cut(df_filtered['Prob_Abandono'], bins=bins, labels=labels, include_lowest=True)
-            risk_dist = df_filtered['RiskCategory'].value_counts(normalize=True).sort_index()
-            
-            fig_bar = go.Figure(go.Bar(
-                x=risk_dist.index,
-                y=risk_dist.values,
-                text=[f'{p:.1%}' for p in risk_dist.values],
-                textposition='auto',
-                marker_color=['green', 'orange', 'red']
-            ))
-            fig_bar.update_layout(
-                yaxis_title="Proporción de Empleados",
-                xaxis_title="Nivel de Riesgo",
-                height=350, margin=dict(l=0, r=0, t=40, b=0),
-                yaxis_tickformat='.0%', title_text="Clasificación de Empleados por Riesgo"
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-            with st.expander("Ver Análisis Detallado"):
-                high_risk_perc_val = risk_dist.get('Alto (>70%)', 0)
-                st.markdown("**¿Qué estamos viendo?:** La clasificación de los empleados en tres niveles de riesgo y el porcentaje que representa cada grupo.")
-                if high_risk_perc_val > 0.25:
-                    st.error(f"**Análisis:** Un **{high_risk_perc_val:.1%}** de los empleados se encuentra en la categoría de 'Alto Riesgo', lo cual es una señal de alerta que requiere atención inmediata.")
-                else:
-                    st.success(f"**Análisis:** Solo un **{high_risk_perc_val:.1%}** de los empleados está en 'Alto Riesgo', una situación mayormente controlada.")
+		if df_filtered.empty:
+			st.warning("La selección de filtros no ha devuelto ningún empleado.")
+		else:
+			st.markdown(f"A continuación se muestran los indicadores clave y el resumen ejecutivo para **{filter_text}**.")
 
-        st.markdown("---")
+			# KPIs
+			kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+			kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
+			kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
+			kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
+			kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
 
-        # Ranking de Empleados
-        st.subheader("👥 Ranking de Empleados por Riesgo")
-        col_top, col_bottom = st.columns(2)
-        with col_top:
-            st.markdown("##### 🔥 Top 5 Mayor Riesgo")
-            top_5_risk = df_filtered.sort_values('Prob_Abandono', ascending=False).head(5)
-            # --- CORRECCIÓN AQUÍ: Se usa el 'index' como ID en lugar de 'Nombre' ---
-            for index, row in top_5_risk.iterrows():
-                st.markdown(f"**Empleado ID: {index}** ({row['Departamento']}) - Riesgo: **{row['Prob_Abandono']:.1%}**")
-        with col_bottom:
-            st.markdown("##### ✅ Top 5 Menor Riesgo")
-            bottom_5_risk = df_filtered.sort_values('Prob_Abandono', ascending=True).head(5)
-            # --- CORRECCIÓN AQUÍ: Se usa el 'index' como ID en lugar de 'Nombre' ---
-            for index, row in bottom_5_risk.iterrows():
-                st.markdown(f"**Empleado ID: {index}** ({row['Departamento']}) - Riesgo: **{row['Prob_Abandono']:.1%}**")
-        
-        # Resumen Ejecutivo Extendido y Detallado
-        st.markdown("---")
-        st.subheader("📝 Resumen Ejecutivo y Conclusiones Estratégicas")
+			st.markdown("---")
 
-        num_empleados = len(df_filtered)
-        mean_risk_perc = df_filtered['Prob_Abandono'].mean()
-        high_risk_filter = df_filtered['Prob_Abandono'] > 0.7
-        high_risk_count = high_risk_filter.sum()
-        high_risk_perc = high_risk_count / num_empleados if num_empleados > 0 else 0
-        
-        if num_empleados > 0:
-            dept_risk = df_filtered.groupby('Departamento')['Prob_Abandono'].mean()
-            worst_dept_name = dept_risk.idxmax()
-            worst_dept_value = dept_risk.max()
-            best_dept_name = dept_risk.idxmin()
-            best_dept_value = dept_risk.min()
+			# Gráficos de Composición y Riesgo
+			col1, col2 = st.columns(2)
+			with col1:
+				st.subheader("Distribución de Perfiles")
+				perfil_counts = df_filtered['Perfil_Empleado'].value_counts()
+				fig_pie = go.Figure(data=[go.Pie(labels=perfil_counts.index, values=perfil_counts.values, hole=.3)])
+				fig_pie.update_layout(height=350, margin=dict(l=0, r=0, t=40, b=0), title_text="Composición de la Plantilla por Perfil")
+				st.plotly_chart(fig_pie, use_container_width=True)
+				with st.expander("Ver Análisis Detallado"):
+					st.markdown("**¿Qué estamos viendo?:** La proporción de cada perfil de empleado dentro del grupo seleccionado.")
+					largest_cluster = perfil_counts.idxmax()
+					st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. Conocer la composición de la plantilla ayuda a enfocar las estrategias de RRHH.")
+					st.markdown("**Recomendaciones:** Si un perfil de alto riesgo (como 'En Riesgo' o 'Bajo Compromiso') es mayoritario, se requieren acciones urgentes de retención.")
 
-            profile_risk = df_filtered.groupby('Perfil_Empleado')['Prob_Abandono'].mean()
-            worst_profile_name = profile_risk.idxmax()
-            worst_profile_value = profile_risk.max()
+			with col2:
+				st.subheader("Distribución del Riesgo de Abandono")
+				bins = [0, 0.3, 0.7, 1.0]
+				labels = ['Bajo (<30%)', 'Medio (30-70%)', 'Alto (>70%)']
+				df_filtered['RiskCategory'] = pd.cut(df_filtered['Prob_Abandono'], bins=bins, labels=labels, include_lowest=True)
+				risk_dist = df_filtered['RiskCategory'].value_counts(normalize=True).sort_index()
+				
+				fig_bar = go.Figure(go.Bar(
+					x=risk_dist.index,
+					y=risk_dist.values,
+					text=[f'{p:.1%}' for p in risk_dist.values],
+					textposition='auto',
+					marker_color=['green', 'orange', 'red']
+				))
+				fig_bar.update_layout(
+					yaxis_title="Proporción de Empleados",
+					xaxis_title="Nivel de Riesgo",
+					height=350, margin=dict(l=0, r=0, t=40, b=0),
+					yaxis_tickformat='.0%', title_text="Clasificación de Empleados por Riesgo"
+				)
+				st.plotly_chart(fig_bar, use_container_width=True)
+				with st.expander("Ver Análisis Detallado"):
+					high_risk_perc_val = risk_dist.get('Alto (>70%)', 0)
+					st.markdown("**¿Qué estamos viendo?:** La clasificación de los empleados en tres niveles de riesgo y el porcentaje que representa cada grupo.")
+					if high_risk_perc_val > 0.25:
+						st.error(f"**Análisis:** Un **{high_risk_perc_val:.1%}** de los empleados se encuentra en la categoría de 'Alto Riesgo', lo cual es una señal de alerta que requiere atención inmediata.")
+					else:
+						st.success(f"**Análisis:** Solo un **{high_risk_perc_val:.1%}** de los empleados está en 'Alto Riesgo', una situación mayormente controlada.")
 
-            mean_clima = df_filtered['Clima_Laboral'].mean()
-            dept_clima = df_filtered.groupby('Departamento')['Clima_Laboral'].mean()
-            best_clima_dept_name = dept_clima.idxmax()
-            best_clima_dept_value = dept_clima.max()
+			st.markdown("---")
 
-            summary_text = f"""
-            #### Diagnóstico General
-            El presente análisis cubre a **{num_empleados} empleados** de **{filter_text}**. 
-            El **riesgo de abandono promedio se sitúa en un {mean_risk_perc:.1%}**, mientras que el **clima laboral medio es de {mean_clima:.2f} sobre 5**. 
-            Estos indicadores generales sugieren un punto de partida para una evaluación más profunda.
+			# Ranking de Empleados
+			st.subheader("👥 Ranking de Empleados por Riesgo")
+			col_top, col_bottom = st.columns(2)
+			with col_top:
+				st.markdown("##### 🔥 Top 5 Mayor Riesgo")
+				top_5_risk = df_filtered.sort_values('Prob_Abandono', ascending=False).head(5)
+				for index, row in top_5_risk.iterrows():
+					st.markdown(f"**Empleado ID: {index}** ({row['Departamento']}) - Riesgo: **{row['Prob_Abandono']:.1%}**")
+			with col_bottom:
+				st.markdown("##### ✅ Top 5 Menor Riesgo")
+				bottom_5_risk = df_filtered.sort_values('Prob_Abandono', ascending=True).head(5)
+				for index, row in bottom_5_risk.iterrows():
+					st.markdown(f"**Empleado ID: {index}** ({row['Departamento']}) - Riesgo: **{row['Prob_Abandono']:.1%}**")
+			
+			# Resumen Ejecutivo Extendido y Detallado
+			st.markdown("---")
+			st.subheader("📝 Resumen Ejecutivo y Conclusiones Estratégicas")
 
-            #### Focos de Riesgo Principales
-            Se ha identificado que un **{high_risk_perc:.1%}** de la plantilla (**{high_risk_count} personas**) se encuentra en un **nivel de riesgo 'Alto'** (probabilidad de abandono > 70%). Esta es la cohorte que requiere atención más urgente.
-            - **Departamento Crítico**: El área de **{worst_dept_name}** presenta el mayor riesgo medio de fuga, con una probabilidad promedio de **{worst_dept_value:.1%}**.
-            - **Perfil más vulnerable**: El perfil de empleado **'{worst_profile_name}'** es el que muestra la mayor tendencia al abandono en el grupo analizado (riesgo medio del **{worst_profile_value:.1%}**).
+			num_empleados = len(df_filtered)
+			mean_risk_perc = df_filtered['Prob_Abandono'].mean()
+			high_risk_filter = df_filtered['Prob_Abandono'] > 0.7
+			high_risk_count = high_risk_filter.sum()
+			high_risk_perc = high_risk_count / num_empleados if num_empleados > 0 else 0
+			
+			if num_empleados > 0:
+				dept_risk = df_filtered.groupby('Departamento')['Prob_Abandono'].mean()
+				worst_dept_name = dept_risk.idxmax()
+				worst_dept_value = dept_risk.max()
+				best_dept_name = dept_risk.idxmin()
+				best_dept_value = dept_risk.min()
 
-            #### Fortalezas y Oportunidades
-            No todo son puntos débiles. Es crucial reconocer y aprender de las áreas de éxito:
-            - **Departamento Ejemplar**: **{best_dept_name}** se destaca como el departamento con el **menor riesgo de abandono ({best_dept_value:.1%})**. Sería valioso analizar sus prácticas de gestión y clima.
-            - **Mejor Clima Laboral**: El departamento de **{best_clima_dept_name}** goza del mejor clima laboral (**{best_clima_dept_value:.2f}/5**), un factor protector clave contra la rotación.
+				profile_risk = df_filtered.groupby('Perfil_Empleado')['Prob_Abandono'].mean()
+				worst_profile_name = profile_risk.idxmax()
+				worst_profile_value = profile_risk.max()
 
-            #### Conclusiones y Recomendaciones Estratégicas
-            1.  **Acción de Choque (Corto Plazo)**: Es imperativo implementar un plan de retención inmediato para los **{high_risk_count} empleados** en alto riesgo. Priorizar entrevistas de permanencia ("stay interviews") en el departamento de **{worst_dept_name}** para diagnosticar y actuar sobre las causas raíz.
-            2.  **Análisis de Perfiles**: Investigar por qué el perfil **'{worst_profile_name}'** es particularmente propenso a la rotación. ¿Se debe a las condiciones del puesto, a la falta de desarrollo o a factores salariales? Utilice la pestaña `Análisis por Segmentos` para cruzar esta información.
-            3.  **Capitalizar Fortalezas**: Analizar las políticas y el estilo de liderazgo del departamento de **{best_dept_name}** para replicar sus buenas prácticas en otras áreas, especialmente en **{worst_dept_name}**.
-            4.  **Simulación de Políticas**: Antes de implementar cambios a gran escala (ej. aumentos salariales), utilice la pestaña `Consulta y Simulación` para modelar su impacto en la probabilidad de abandono de los empleados clave. Esto permite optimizar la inversión en retención.
-            """
-            st.markdown(summary_text)
-        else:
-            st.warning("No hay datos suficientes para generar el resumen ejecutivo.")
-            
+				mean_clima = df_filtered['Clima_Laboral'].mean()
+				dept_clima = df_filtered.groupby('Departamento')['Clima_Laboral'].mean()
+				best_clima_dept_name = dept_clima.idxmax()
+				best_clima_dept_value = dept_clima.max()
+
+				summary_text = f"""
+				#### Diagnóstico General
+				El presente análisis cubre a **{num_empleados} empleados** de **{filter_text}**. 
+				El **riesgo de abandono promedio se sitúa en un {mean_risk_perc:.1%}**, mientras que el **clima laboral medio es de {mean_clima:.2f} sobre 5**. 
+				Estos indicadores generales sugieren un punto de partida para una evaluación más profunda.
+
+				#### Focos de Riesgo Principales
+				Se ha identificado que un **{high_risk_perc:.1%}** de la plantilla (**{high_risk_count} personas**) se encuentra en un **nivel de riesgo 'Alto'** (probabilidad de abandono > 70%). Esta es la cohorte que requiere atención más urgente.
+				- **Departamento Crítico**: El área de **{worst_dept_name}** presenta el mayor riesgo medio de fuga, con una probabilidad promedio de **{worst_dept_value:.1%}**.
+				- **Perfil más vulnerable**: El perfil de empleado **'{worst_profile_name}'** es el que muestra la mayor tendencia al abandono en el grupo analizado (riesgo medio del **{worst_profile_value:.1%}**).
+
+				#### Fortalezas y Oportunidades
+				No todo son puntos débiles. Es crucial reconocer y aprender de las áreas de éxito:
+				- **Departamento Ejemplar**: **{best_dept_name}** se destaca como el departamento con el **menor riesgo de abandono ({best_dept_value:.1%})**. Sería valioso analizar sus prácticas de gestión y clima.
+				- **Mejor Clima Laboral**: El departamento de **{best_clima_dept_name}** goza del mejor clima laboral (**{best_clima_dept_value:.2f}/5**), un factor protector clave contra la rotación.
+
+				#### Conclusiones y Recomendaciones Estratégicas
+				1.  **Acción de Choque (Corto Plazo)**: Es imperativo implementar un plan de retención inmediato para los **{high_risk_count} empleados** en alto riesgo. Priorizar entrevistas de permanencia ("stay interviews") en el departamento de **{worst_dept_name}** para diagnosticar y actuar sobre las causas raíz.
+				2.  **Análisis de Perfiles**: Investigar por qué el perfil **'{worst_profile_name}'** es particularmente propenso a la rotación. ¿Se debe a las condiciones del puesto, a la falta de desarrollo o a factores salariales? Utilice la pestaña `Análisis por Segmentos` para cruzar esta información.
+				3.  **Capitalizar Fortalezas**: Analizar las políticas y el estilo de liderazgo del departamento de **{best_dept_name}** para replicar sus buenas prácticas en otras áreas, especialmente en **{worst_dept_name}**.
+				4.  **Simulación de Políticas**: Antes de implementar cambios a gran escala (ej. aumentos salariales), utilice la pestaña `Consulta y Simulación` para modelar su impacto en la probabilidad de abandono de los empleados clave. Esto permite optimizar la inversión en retención.
+				"""
+				st.markdown(summary_text)
+			else:
+				st.warning("No hay datos suficientes para generar el resumen ejecutivo.")
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
     with tab2:
         st.header("Análisis por Segmentos (Perfiles y Departamentos)")
