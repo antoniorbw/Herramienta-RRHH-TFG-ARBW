@@ -204,13 +204,13 @@ try:
     if st.sidebar.button("Generar Informe para Descargar"):
         if report_type == "Informe de Gráficas (PDF)":
             report_data = generate_pdf_of_graphs(df_filtered, model, X_train_df.columns)
-            st.session_state.download_data = {"data": report_data, "name": f"informe_grafico_{scope_text}.pdf", "mime": "application/pdf"}
+            st.session_state.download_data = {"data": report_data, "file_name": f"informe_grafico_{scope_text}.pdf", "mime": "application/pdf"}
         elif report_type == "Informe Extenso (TXT)":
             report_data = generate_extensive_txt_report(df_filtered, model, X_train_df.columns)
-            st.session_state.download_data = {"data": report_data, "name": f"informe_extenso_{scope_text}.txt", "mime": "text/plain"}
+            st.session_state.download_data = {"data": report_data, "file_name": f"informe_extenso_{scope_text}.txt", "mime": "text/plain"}
         elif report_type == "Resumen Ejecutivo (TXT)":
             report_data = generate_summary_txt_report(df_filtered, model, X_train_df.columns)
-            st.session_state.download_data = {"data": report_data, "name": f"informe_resumen_{scope_text}.txt", "mime": "text/plain"}
+            st.session_state.download_data = {"data": report_data, "file_name": f"informe_resumen_{scope_text}.txt", "mime": "text/plain"}
 
     if 'download_data' in st.session_state and st.session_state.download_data:
         st.sidebar.download_button("✅ ¡Listo! Haz clic para descargar", **st.session_state.download_data)
@@ -262,7 +262,7 @@ try:
                 for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                     st.markdown(f"""
-                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
+                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #262730;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
                         <small><i>{row['Recomendación']}</i></small>
                     </div>
@@ -387,22 +387,14 @@ try:
         st.markdown("""
         - **KPI (Key Performance Indicator):** Indicador Clave de Rendimiento. Son las métricas más importantes que resumen la situación general (ej. Riesgo Medio).
         - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa.
-        - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares. En este análisis se identifican 4 perfiles principales:
-            - `Alto Desempeño:` Empleados con buen rendimiento, pero que pueden estar en riesgo si no se sienten valorados o retados.
-            - `Potencial Crecimiento:` Empleados leales y con buen clima, pero quizás con un desempeño que se puede potenciar.
-            - `Bajo Compromiso:` Suelen ser empleados más jóvenes, con bajo clima y alto riesgo. Requieren una intervención para mejorar su integración.
-            - `En Riesgo:` El grupo más crítico. Combinan varios factores negativos que disparan su probabilidad de abandono.
-        - **Impulsores Clave (Feature Importance):** Los factores o variables que más peso tienen para el modelo a la hora de hacer una predicción.
+        - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares.
+        - **Impulsores Clave (Feature Importance):** Los factores o variables que más peso tienen para el modelo.
         - **Explicabilidad (XAI):** Técnicas que permiten entender por qué el modelo ha tomado una decisión específica para un caso concreto.
-        - **Análisis de Componentes Principales (PCA):** Técnica de reducción de dimensiones usada para visualizar los clusters en un mapa 2D.
-        - **StandardScaler:** Proceso técnico para estandarizar las variables numéricas (como Salario y Edad) para que tengan la misma escala y peso en los modelos.
         """)
-        st.subheader("Metodología del Modelo - Paso a Paso")
+        st.subheader("Metodología del Modelo")
         st.markdown("""
-        1.  **Preparación de Datos:** Se transforman las variables categóricas (como Departamento) en un formato numérico que el modelo pueda entender (`One-Hot Encoding`).
-        2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo. Esto es crucial para algoritmos como K-Means.
-        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad.
-        4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa.
+        1.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**.
+        2.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering**.
         """)
 
 except Exception as e:
