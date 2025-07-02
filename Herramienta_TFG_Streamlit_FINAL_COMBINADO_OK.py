@@ -114,6 +114,8 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
+    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
+
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -170,13 +172,12 @@ try:
 
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
-                st.caption("Ranking de empleados que requieren atención más urgente según el modelo.")
                 for i, (index, row) in enumerate(df_filtered.nlargest(5, 'Prob_Abandono').iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                     st.markdown(f"""
                     <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
-                        <small><i>Recomendación: {row['Recomendación']}</i></small>
+                        <small><i>{row['Recomendación']}</i></small>
                     </div>
                     """, unsafe_allow_html=True)
             
@@ -222,9 +223,23 @@ try:
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
+                # EXPLICACIÓN RESTAURADA Y MEJORADA
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
+                    if len(df_filtered['Departamento'].unique()) > 1:
+                        clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
+                        st.markdown("**¿Qué está pasando en tus datos?:** El departamento con peor clima es **'{}'** ({:.2f}/5), mientras que el mejor es **'{}'** ({:.2f}/5).".format(clima_stats.index[0], clima_stats.iloc[0], clima_stats.index[-1], clima_stats.iloc[-1]))
+                    st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas (mala gestión, sobrecarga, etc.) y actuar sobre ellas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
+                # EXPLICACIÓN RESTAURADA Y MEJORADA
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
+                    if len(df_filtered['Departamento'].unique()) > 1:
+                        risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
+                        st.markdown("**¿Qué está pasando en tus datos?:** El departamento con mayor riesgo es **'{}'** ({:.1%}), lo que lo convierte en el foco principal de las estrategias de retención.".format(risk_stats.index[-1], risk_stats.iloc[-1]))
+                    st.markdown("**Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo. Analizar si el tipo de rol o la gestión departamental son factores determinantes.")
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
