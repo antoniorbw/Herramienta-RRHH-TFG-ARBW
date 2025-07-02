@@ -156,36 +156,18 @@ try:
         if df_filtered.empty:
             st.warning("La selección de filtros no ha devuelto ningún empleado.")
         else:
-            st.markdown(f"A continuación se muestran los indicadores y conclusiones clave para **{filter_text}**.")
-            
-            # --- NUEVO: Resumen Ejecutivo Extendido ---
-            with st.container():
-                st.subheader("📝 Resumen Ejecutivo y Conclusiones")
-                mean_risk_perc = df_filtered['Prob_Abandono'].mean()
-                high_risk_count = len(df_filtered[df_filtered['Prob_Abandono'] > 0.75])
-                worst_dept = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().idxmax()
-                
-                summary_text = f"""
-                El análisis sobre **{filter_text}** revela un **riesgo de abandono medio del {mean_risk_perc:.1%}**. 
-                Actualmente, **{high_risk_count} empleado(s)** se encuentran en una situación de riesgo crítico (superior al 75%).
-                El departamento que presenta una mayor vulnerabilidad es **{worst_dept}**. 
-                Las acciones de retención deben priorizarse en este colectivo, poniendo especial atención en los impulsores clave del riesgo.
-                """
-                st.info(summary_text)
-
-            st.markdown("---")
+            st.markdown(f"A continuación se muestran los indicadores clave y el resumen ejecutivo para **{filter_text}**.")
             
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             kpi1.metric("👥 Empleados", f"{len(df_filtered)}")
-            kpi2.metric("🔥 Riesgo Medio", f"{mean_risk_perc:.1%}")
+            kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
             kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
             kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
             
             st.markdown("---")
-
+            
             col1, col2 = st.columns(2)
             with col1:
-                # --- NUEVO: Gráfica de Tarta (Pie Chart) ---
                 st.subheader("Distribución de Perfiles")
                 perfil_counts = df_filtered['Perfil_Empleado'].value_counts()
                 fig_pie = go.Figure(data=[go.Pie(labels=perfil_counts.index, values=perfil_counts.values, hole=.3)])
@@ -198,18 +180,38 @@ try:
                     st.markdown("**Recomendaciones:** Si un perfil de alto riesgo (como 'En Riesgo' o 'Bajo Compromiso') es mayoritario, se requieren acciones urgentes de retención.")
 
             with col2:
-                st.subheader("Focos de Atención: Empleados Clave")
-                st.markdown("##### 🔴 Top 5 con Mayor Riesgo")
-                top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
-                # CORREGIDO: Formato del ranking
-                for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
-                    st.markdown(f"**{i}. Empleado (ID {index})** - Dpto: {row['Departamento']} - Riesgo: **{row['Prob_Abandono']:.1%}**")
-                
-                st.markdown("##### 🟢 Top 5 con Menor Riesgo (Comprometidos)")
-                bottom_5_risk = df_filtered.nsmallest(5, 'Prob_Abandono')
-                for i, (index, row) in enumerate(bottom_5_risk.iterrows(), 1):
-                    st.markdown(f"**{i}.** Empleado (ID {index}) - Dpto: {row['Departamento']} - Riesgo: **{row['Prob_Abandono']:.1%}**")
-    
+                st.subheader("Distribución del Riesgo de Abandono")
+                fig_hist, ax_hist = plt.subplots(figsize=(8, 3.5)); 
+                sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax_hist, color="skyblue")
+                ax_hist.set_xlabel("Probabilidad de Abandono"); ax_hist.set_ylabel("Nº de Empleados")
+                st.pyplot(fig_hist)
+                with st.expander("Ver Análisis Detallado"):
+                    mean_risk = df_filtered['Prob_Abandono'].mean()
+                    if mean_risk > 0.6:
+                        st.error(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
+                    else:
+                        st.success(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
+
+            st.markdown("---")
+            
+            # --- NUEVO: Resumen Ejecutivo Extendido ---
+            st.subheader("📝 Resumen Ejecutivo y Conclusiones Estratégicas")
+            mean_risk_perc = df_filtered['Prob_Abandono'].mean()
+            high_risk_count = len(df_filtered[df_filtered['Prob_Abandono'] > 0.75])
+            worst_dept = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().idxmax()
+            
+            summary_text = f"""
+            El análisis sobre **{filter_text}** revela un **riesgo de abandono medio del {mean_risk_perc:.1%}**. 
+            Actualmente, **{high_risk_count} empleado(s)** se encuentran en una situación de riesgo crítico (superior al 75%).
+            El departamento que presenta una mayor vulnerabilidad es **{worst_dept}**. 
+            Las acciones de retención deben priorizarse en este colectivo, poniendo especial atención en los impulsores clave del riesgo, como el clima laboral y las oportunidades de desarrollo.
+            
+            **Para un análisis más profundo, te recomendamos explorar las siguientes pestañas:**
+            - `Análisis por Segmentos` para comparar departamentos y perfiles.
+            - `Consulta y Simulación` para investigar empleados individuales y simular el impacto de nuevas políticas.
+            """
+            st.info(summary_text)
+
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
     with tab2:
         st.header("Análisis por Segmentos (Perfiles y Departamentos)")
