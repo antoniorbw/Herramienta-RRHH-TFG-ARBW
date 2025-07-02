@@ -320,4 +320,4 @@ except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
     st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias. Puedes descargar la plantilla de ejemplo desde la barra lateral.")
 
-```
+
