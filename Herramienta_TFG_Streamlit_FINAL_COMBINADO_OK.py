@@ -107,7 +107,6 @@ if uploaded_file is None:
     st.info("ℹ️ Para comenzar, sube un archivo CSV usando el menú de la izquierda.")
     st.stop()
 
-# --- Bloque principal de ejecución con manejo de errores ---
 try:
     df_original = pd.read_csv(uploaded_file, sep=";")
     df_sim, error_message, model, X_train_df, X_scaled_full = process_data(df_original.copy())
@@ -161,12 +160,16 @@ try:
             with col1:
                 st.subheader("Distribución del Riesgo de Abandono")
                 fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
-                with st.expander("Ver Explicación y Recomendaciones"):
-                    st.markdown("""
-                    - **¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.
-                    - **¿Por qué es importante?:** Permite identificar si el riesgo de abandono es un problema aislado o generalizado.
-                    - **Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda de las causas a nivel organizacional.
-                    """)
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.")
+                    st.markdown("**¿Qué está pasando en tus datos?:**")
+                    mean_risk = df_filtered['Prob_Abandono'].mean()
+                    if mean_risk > 0.6:
+                        st.error(f"El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante. La mayoría de los empleados se concentra en la zona de alto riesgo.")
+                    else:
+                        st.success(f"El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada, aunque existen individuos en riesgo.")
+                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda de las causas a nivel organizacional.")
+
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
                 for i, (index, row) in enumerate(df_filtered.nlargest(5, 'Prob_Abandono').iterrows(), 1):
@@ -177,23 +180,16 @@ try:
                         <small><i>{row['Recomendación']}</i></small>
                     </div>
                     """, unsafe_allow_html=True)
-                with st.expander("Ver Explicación y Recomendaciones"):
-                    st.markdown("""
-                    - **¿Qué estamos viendo?:** Un ranking de los empleados que requieren atención más urgente.
-                    - **¿Por qué es importante?:** Permite priorizar las acciones de retención en los casos más críticos.
-                    - **Recomendaciones:** Abordar estos casos de forma individualizada. Usar la recomendación específica como punto de partida para la conversación.
-                    """)
             
             st.markdown("---")
             st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
             importances = pd.DataFrame(data={'Attribute': X_train_df.columns, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=True).tail(10)
             fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
-            with st.expander("Ver Explicación y Recomendaciones"):
-                st.markdown("""
-                - **¿Qué estamos viendo?:** Los factores que el modelo de IA considera más importantes para predecir el abandono.
-                - **¿Por qué es importante?:** Indica dónde centrar las políticas de RRHH para tener el mayor impacto.
-                - **Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.
-                """)
+            with st.expander("Ver Análisis Detallado"):
+                top_feature = importances.iloc[-1]['Attribute'].replace('_', ' ')
+                st.markdown("**¿Qué estamos viendo?:** Los factores que el modelo de IA considera más importantes para predecir el abandono.")
+                st.markdown("**¿Qué está pasando en tus datos?:** El factor más determinante para predecir el abandono en tu empresa es **'{}'**.".format(top_feature))
+                st.markdown("**Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.")
 
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
     with tab2:
@@ -227,21 +223,9 @@ try:
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
-                with st.expander("Ver Explicación y Recomendaciones"):
-                    st.markdown("""
-                    - **¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.
-                    - **¿Por qué es importante?:** Un clima bajo es un precursor directo de la insatisfacción y el abandono. Permite detectar focos de problemas de gestión o de equipo.
-                    - **Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas (mala gestión, sobrecarga, etc.) y actuar sobre ellas.
-                    """)
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
-                with st.expander("Ver Explicación y Recomendaciones"):
-                    st.markdown("""
-                    - **¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de aband మనో.
-                    - **¿Por qué es importante?:** Identifica las áreas de negocio más vulnerables a la fuga de talento, lo que puede tener un impacto operativo crítico.
-                    - **Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo. Analizar si el tipo de rol, la carga de trabajo o la gestión departamental son factores determinantes.
-                    """)
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
@@ -336,3 +320,4 @@ except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
     st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias. Puedes descargar la plantilla de ejemplo desde la barra lateral.")
 
+```
