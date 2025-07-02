@@ -1,4 +1,3 @@
-
 # ==========================================
 # Librerías y Configuración Inicial
 # ==========================================
@@ -115,6 +114,8 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
+    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
+
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -165,7 +166,7 @@ try:
                         st.error(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
                     else:
                         st.success(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
-                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda de las causas a nivel organizacional.")
+                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda.")
 
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
@@ -206,6 +207,11 @@ try:
                     df_pca["Perfil"] = df_filtered["Perfil_Empleado"]
                     fig, ax = plt.subplots(); sns.scatterplot(data=df_pca, x="PCA1", y="PCA2", hue="Perfil", palette="Set2", s=80, ax=ax); ax.grid(True)
                     st.pyplot(fig)
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** Una representación visual de los perfiles de empleados.")
+                    largest_cluster = df_filtered['Perfil_Empleado'].mode()[0]
+                    st.info(f"**Análisis:** El perfil más común en este grupo es **'{largest_cluster}'**. La separación visual entre los colores indica si la segmentación es clara.")
+                    st.markdown("**Recomendaciones:** Utiliza esta vista para confirmar la validez de los perfiles. Un perfil de 'En Riesgo' que aparece visualmente separado del resto refuerza la necesidad de estrategias diferenciadas.")
             with col2:
                 st.markdown("##### Resumen de Perfiles Identificados")
                 for perfil in sorted(df_filtered['Perfil_Empleado'].unique()):
@@ -220,9 +226,21 @@ try:
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
+                    if len(df_filtered['Departamento'].unique()) > 1:
+                        clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
+                        st.warning(f"**Análisis:** El departamento con el clima laboral más bajo es **'{clima_stats.index[0]}'** con una puntuación de **{clima_stats.iloc[0]:.2f}/5**.")
+                    st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
+                with st.expander("Ver Análisis Detallado"):
+                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
+                    if len(df_filtered['Departamento'].unique()) > 1:
+                        risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
+                        st.error(f"**Análisis:** El departamento con mayor riesgo es **'{risk_stats.index[-1]}'** ({risk_stats.iloc[-1]:.1%}).")
+                    st.markdown("**Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo.")
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
