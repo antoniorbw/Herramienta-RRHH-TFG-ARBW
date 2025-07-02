@@ -21,34 +21,72 @@ import io
 st.set_page_config(page_title="Herramienta IA Estratégica - RRHH", layout="wide")
 
 # ==========================================
-# Barra Lateral (Sidebar)
+# Funciones de Generación de Informes
 # ==========================================
-st.sidebar.title("⚙️ Panel de Control")
 
-# --- Descarga de plantilla CSV ---
-@st.cache_data
-def create_template_csv():
-    template_data = {
-        'Edad': [35, 42, 28, 50, 31, 25, 38, 45, 29, 33], 'Antigüedad': [5, 10, 2, 20, 3, 1, 8, 15, 4, 6],
-        'Desempeño': [3, 4, 5, 4, 2, 4, 3, 5, 2, 4], 'Salario': [35000, 55000, 60000, 75000, 32000, 40000, 48000, 85000, 33000, 45000],
-        'Formación_Reciente': [1, 0, 1, 0, 1, 0, 1, 1, 0, 1], 'Clima_Laboral': [3, 4, 5, 2, 1, 4, 3, 5, 2, 4],
-        'Departamento': ['Ventas', 'TI', 'Marketing', 'Ventas', 'TI', 'Marketing', 'Producción', 'Producción', 'RRHH', 'RRHH'],
-        'Riesgo_Abandono': [0, 1, 0, 1, 1, 0, 0, 0, 1, 0], 'Horas_Extra': [5, 2, 0, 8, 10, 1, 4, 0, 6, 2],
-        'Bajas_Último_Año': [1, 0, 0, 2, 3, 0, 1, 0, 2, 0], 'Promociones_2_Años': [0, 1, 1, 0, 0, 0, 1, 1, 0, 1],
-        'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal', 'Indefinido', 'Indefinido', 'Indefinido', 'Temporal', 'Indefinido']
-    }
-    df_template = pd.DataFrame(template_data)
-    return df_template.to_csv(index=False, sep=';').encode('utf-8')
+def generate_pdf_of_graphs(df_report, model, feature_names):
+    if not os.path.exists("temp_img"):
+        os.makedirs("temp_img")
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # Gráfica 1: Distribución del Riesgo
+    fig, ax = plt.subplots(); sns.histplot(df_report['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_title("Distribucion del Riesgo de Abandono"); plt.tight_layout(); plt.savefig("temp_img/riesgo_dist.png"); plt.close(fig)
+    
+    # Gráfica 2: Impulsores Clave
+    importances = pd.DataFrame(data={'Attribute': feature_names, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=True).tail(10)
+    fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Impulsores Clave del Riesgo'); plt.tight_layout(); plt.savefig("temp_img/impulsores.png"); plt.close(fig)
+    
+    # Gráfica 3: Riesgo por Departamento
+    fig, ax = plt.subplots(); df_report.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); ax.set_title("Riesgo Medio por Departamento"); plt.tight_layout(); plt.savefig("temp_img/riesgo_depto.png"); plt.close(fig)
 
-st.sidebar.download_button(
-   label="📥 Descargar plantilla de ejemplo",
-   data=create_template_csv(),
-   file_name='plantilla_datos_empleados.csv',
-   mime='text/csv',
-)
+    pdf.add_page(); pdf.set_font("Arial", 'B', 16); pdf.cell(0, 10, "Informe Grafico de Analisis de Plantilla", ln=True, align='C')
+    
+    for title, path in [("Distribucion del Riesgo de Abandono", "temp_img/riesgo_dist.png"), 
+                         ("Impulsores Clave del Riesgo", "temp_img/impulsores.png"), 
+                         ("Riesgo Medio por Departamento", "temp_img/riesgo_depto.png")]:
+        if os.path.exists(path):
+            pdf.add_page(); pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, title, ln=True, align='C'); pdf.image(path, w=180)
+        
+    return pdf.output(dest='S').encode('latin-1')
 
-# --- Carga de datos ---
-uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
+def generate_extensive_txt_report(df_report, model, feature_names):
+    report_lines = [f"INFORME ESTRATEGICO EXTENSO - {datetime.now().strftime('%d/%m/%Y')}\n{'='*60}\n"]
+    report_lines.append(f"Analisis para {len(df_report)} empleados.\n")
+    report_lines.append(f"1. KPIs Principales:\n   - Riesgo Medio: {df_report['Prob_Abandono'].mean():.1%}\n   - Clima Laboral Medio: {df_report['Clima_Laboral'].mean():.2f}/5\n")
+    
+    importances = pd.DataFrame(data={'Attribute': feature_names, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=False)
+    top_feature = importances.iloc[0]['Attribute'].replace('_', ' ')
+    report_lines.append(f"2. Impulsor Clave Principal: '{top_feature}'\n")
+    
+    report_lines.append("3. Desglose por Departamento:")
+    for name, group in df_report.groupby('Departamento'):
+        report_lines.append(f"   - {name}: {len(group)} empleados, Riesgo Medio: {group['Prob_Abandono'].mean():.1%}")
+
+    report_lines.append("\n4. Desglose Individual de Empleados:\n")
+    for index, row in df_report.iterrows():
+        report_lines.append(f"{'-'*30}\nID Empleado: {index} | Depto: {row['Departamento']} | Riesgo: {row['Prob_Abandono']:.1%}\nRecomendacion: {row['Recomendacion']}\n")
+        
+    return "\n".join(report_lines).encode('utf-8')
+
+def generate_summary_txt_report(df_report, model, feature_names):
+    report_lines = [f"RESUMEN EJECUTIVO - {datetime.now().strftime('%d/%m/%Y')}\n{'='*60}\n"]
+    report_lines.append(f"Analisis para {len(df_report)} empleados.\n")
+    report_lines.append(f"PUNTOS CLAVE:\n")
+    report_lines.append(f" - Riesgo Medio de Abandono: {df_report['Prob_Abandono'].mean():.1%}")
+    
+    risk_by_dept = df_report.groupby('Departamento')['Prob_Abandono'].mean().sort_values(ascending=False)
+    report_lines.append(f" - Departamento con Mayor Riesgo: {risk_by_dept.index[0]} ({risk_by_dept.iloc[0]:.1%})")
+
+    importances = pd.DataFrame(data={'Attribute': feature_names, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=False)
+    top_feature = importances.iloc[0]['Attribute'].replace('_', ' ')
+    report_lines.append(f" - Principal Impulsor del Riesgo: {top_feature}\n")
+
+    report_lines.append("EMPLEADOS DE ALTA PRIORIDAD (Top 3):\n")
+    for index, row in df_report.nlargest(3, 'Prob_Abandono').iterrows():
+        report_lines.append(f" - ID {index} ({row['Departamento']}): Riesgo del {row['Prob_Abandono']:.1%}")
+
+    return "\n".join(report_lines).encode('utf-8')
 
 # ==========================================
 # Procesamiento Central de Datos
@@ -99,13 +137,43 @@ def process_data(_df):
     return df_sim, None, model, X, X_scaled
 
 # ==========================================
+# Barra Lateral (Sidebar)
+# ==========================================
+st.sidebar.title("⚙️ Panel de Control")
+
+# --- Descarga de plantilla CSV ---
+@st.cache_data
+def create_template_csv():
+    template_data = {
+        'Edad': [35, 42, 28, 50, 31, 25, 38, 45, 29, 33], 'Antigüedad': [5, 10, 2, 20, 3, 1, 8, 15, 4, 6],
+        'Desempeño': [3, 4, 5, 4, 2, 4, 3, 5, 2, 4], 'Salario': [35000, 55000, 60000, 75000, 32000, 40000, 48000, 85000, 33000, 45000],
+        'Formación_Reciente': [1, 0, 1, 0, 1, 0, 1, 1, 0, 1], 'Clima_Laboral': [3, 4, 5, 2, 1, 4, 3, 5, 2, 4],
+        'Departamento': ['Ventas', 'TI', 'Marketing', 'Ventas', 'TI', 'Marketing', 'Producción', 'Producción', 'RRHH', 'RRHH'],
+        'Riesgo_Abandono': [0, 1, 0, 1, 1, 0, 0, 0, 1, 0], 'Horas_Extra': [5, 2, 0, 8, 10, 1, 4, 0, 6, 2],
+        'Bajas_Último_Año': [1, 0, 0, 2, 3, 0, 1, 0, 2, 0], 'Promociones_2_Años': [0, 1, 1, 0, 0, 0, 1, 1, 0, 1],
+        'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal', 'Indefinido', 'Indefinido', 'Indefinido', 'Temporal', 'Indefinido']
+    }
+    df_template = pd.DataFrame(template_data)
+    return df_template.to_csv(index=False, sep=';').encode('utf-8')
+
+st.sidebar.download_button(
+   label="📥 Descargar plantilla de ejemplo",
+   data=create_template_csv(),
+   file_name='plantilla_datos_empleados.csv',
+   mime='text/csv',
+)
+
+# --- Carga de datos ---
+uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
+
+# ==========================================
 # Cuerpo Principal
 # ==========================================
-# TÍTULO CORREGIDO
 st.title("Aplicación de IA para la Planificación Estratégica de la Plantilla")
 st.caption("Creado por Antonio Wilkinson para el Trabajo de Fin de Grado: 'Desarrollo de una aplicación de Inteligencia Artificial para la planificación estratégica de la plantilla'")
 st.markdown("---")
 
+# --- INSTRUCCIONES ---
 with st.expander("👋 ¡Bienvenido/a! Haz clic aquí para ver las instrucciones", expanded=True):
     st.markdown("""
     Esta aplicación te permite analizar los datos de tus empleados para obtener información valiosa y tomar decisiones estratégicas basadas en datos.
@@ -141,6 +209,27 @@ try:
     if dept_selection != 'Todos': df_filtered = df_filtered[df_filtered['Departamento'] == dept_selection]
     if perfil_selection != 'Todos': df_filtered = df_filtered[df_filtered['Perfil_Empleado'] == perfil_selection]
     
+    # --- Módulo de Exportación en Sidebar ---
+    st.sidebar.markdown("---")
+    st.sidebar.header("📄 Opciones de Exportación")
+    report_type = st.sidebar.selectbox("Elige el tipo de informe:", ["Informe de Gráficas (PDF)", "Informe Extenso (TXT)", "Resumen Ejecutivo (TXT)"])
+    scope_text = dept_selection if dept_selection != 'Todos' else 'Total'
+
+    if st.sidebar.button("Generar Informe para Descargar"):
+        if report_type == "Informe de Gráficas (PDF)":
+            report_data = generate_pdf_of_graphs(df_filtered, model, X_train_df.columns)
+            st.session_state.download_data = {"data": report_data, "name": f"informe_grafico_{scope_text}.pdf", "mime": "application/pdf"}
+        elif report_type == "Informe Extenso (TXT)":
+            report_data = generate_extensive_txt_report(df_filtered, model, X_train_df.columns)
+            st.session_state.download_data = {"data": report_data, "name": f"informe_extenso_{scope_text}.txt", "mime": "text/plain"}
+        elif report_type == "Resumen Ejecutivo (TXT)":
+            report_data = generate_summary_txt_report(df_filtered, model, X_train_df.columns)
+            st.session_state.download_data = {"data": report_data, "name": f"informe_resumen_{scope_text}.txt", "mime": "text/plain"}
+
+    if 'download_data' in st.session_state and st.session_state.download_data:
+        st.sidebar.download_button("✅ ¡Listo! Haz clic para descargar", **st.session_state.download_data)
+
+
     # ==========================================
     # ESTRUCTURA DE PESTAÑAS
     # ==========================================
@@ -153,10 +242,10 @@ try:
 
     # --- PESTAÑA 1: DASHBOARD PRINCIPAL ---
     with tab1:
-        # ... (Contenido completo de la Pestaña 1)
         st.header("Dashboard y Resumen Ejecutivo")
         filter_text = "toda la plantilla"
         if dept_selection != 'Todos' or perfil_selection != 'Todos': filter_text = "la selección filtrada"
+        
         if df_filtered.empty:
             st.warning("La selección de filtros no ha devuelto ningún empleado.")
         else:
@@ -166,28 +255,44 @@ try:
             kpi2.metric("🔥 Riesgo Medio", f"{df_filtered['Prob_Abandono'].mean():.1%}")
             kpi3.metric("😊 Clima Medio", f"{df_filtered['Clima_Laboral'].mean():.2f}/5")
             kpi4.metric("💰 Salario Medio", f"€{df_filtered['Salario'].mean():,.0f}")
+            
             st.markdown("---")
+            
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("Distribución del Riesgo de Abandono")
                 fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
+                with st.expander("Ver Análisis Detallado"):
+                    mean_risk = df_filtered['Prob_Abandono'].mean()
+                    if mean_risk > 0.6:
+                        st.error(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
+                    else:
+                        st.success(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
+                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda.")
+
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
                 top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
                 for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
-                    st.markdown(f"""<div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
+                    st.markdown(f"""
+                    <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
                         **{i}. Empleado del dpto. {row['Departamento']}** - Riesgo: **{row['Prob_Abandono']:.1%}** <br>
                         <small><i>{row['Recomendación']}</i></small>
-                    </div>""", unsafe_allow_html=True)
+                    </div>
+                    """, unsafe_allow_html=True)
+            
             st.markdown("---")
             st.subheader("🎯 Impulsores Clave del Riesgo de Abandono (Análisis Global)")
             importances = pd.DataFrame(data={'Attribute': X_train_df.columns, 'Importance': np.abs(model.coef_[0])}).sort_values(by='Importance', ascending=True).tail(10)
             fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
+            with st.expander("Ver Análisis Detallado"):
+                top_feature = importances.iloc[-1]['Attribute'].replace('_', ' ')
+                st.info(f"**Análisis:** El factor más determinante para predecir el abandono en tu empresa es **'{top_feature}'**.")
+                st.markdown("**Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.")
 
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
     with tab2:
-        # ... (Contenido completo de la Pestaña 2)
         st.header("Análisis por Segmentos (Perfiles y Departamentos)")
         if df_filtered.empty: st.warning("No hay empleados que coincidan con los filtros.")
         else:
@@ -214,6 +319,7 @@ try:
                         st.markdown(f"Riesgo medio de **{grupo['Prob_Abandono'].mean():.1%}** y clima de **{grupo['Clima_Laboral'].mean():.1f}/5**.")
                         if not grupo['Recomendación'].mode().empty:
                             st.info(f"**Recomendación principal:** {grupo['Recomendación'].mode().iloc[0]}")
+            
             st.markdown("---")
             st.subheader("Análisis por Departamento")
             col1, col2 = st.columns(2)
@@ -226,13 +332,14 @@ try:
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
-        # ... (Contenido completo de la Pestaña 3)
         st.header("Consulta Individual y Simulación de Políticas")
         if df_filtered.empty: st.warning("No hay empleados que coincidan con los filtros.")
         else:
             st.subheader("Análisis Individual Detallado (XAI)")
             st.markdown("Selecciona un empleado para ver su ficha y los factores que determinan su riesgo.")
+            
             selected_id = st.selectbox("Selecciona un ID de Empleado:", df_filtered.index, key="employee_selector")
+            
             if selected_id is not None:
                 row = df_filtered.loc[selected_id]
                 riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else ("orange" if row.get('Prob_Abandono', 0) >= 0.4 else "green")
@@ -240,9 +347,11 @@ try:
                     <h5 style="color:{riesgo_color}; margin-bottom: 5px;">RIESGO DE ABANDONO (ID {selected_id}): {row.get('Prob_Abandono', 0):.1%}</h5>
                     <p style="margin-bottom: 0px;"><strong>RECOMENDACIÓN:</strong> {row.get('Recomendación', 'N/A')}</p>
                 </div>""", unsafe_allow_html=True)
+
                 st.markdown("##### ¿Por qué tiene este nivel de riesgo?")
                 employee_index_in_original_df = df_sim.index.get_loc(selected_id)
                 employee_scaled_data = X_scaled_full[employee_index_in_original_df]
+                
                 contributions = employee_scaled_data * model.coef_[0]
                 feature_contribution = pd.DataFrame({'feature': X_train_df.columns, 'contribution': contributions}).sort_values(by='contribution', ascending=False)
                 c1, c2 = st.columns(2)
@@ -252,6 +361,7 @@ try:
                 with c2:
                     st.markdown("🟢 **Factores que REDUCEN el riesgo:**")
                     for i, rec in feature_contribution.tail(3).sort_values(by='contribution').iterrows(): st.markdown(f"- **{rec['feature'].replace('_', ' ')}**")
+            
             st.markdown("---")
             st.subheader("🕹️ Simulador de Políticas 'What-If'")
             sim_col1, sim_col2 = st.columns([1, 2])
@@ -268,15 +378,29 @@ try:
                 fig_sim, ax_sim = plt.subplots(); bars = sns.barplot(x=list(escenarios_sim.keys()), y=list(escenarios_sim.values()), palette="viridis", ax=ax_sim)
                 for bar in bars.patches: ax_sim.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{bar.get_height():.1%}', ha='center', va='bottom', fontweight='bold')
                 ax_sim.set_ylabel("Riesgo Medio de Abandono"); st.pyplot(fig_sim)
+            
+            with st.expander("Ver Análisis Detallado de Escenarios y Recomendaciones"):
+                st.markdown(f"""
+                #### Análisis del Escenario: Mejora de Formación
+                - **Resultado:** Con una reducción de riesgo del **{form_impact}%**, el riesgo medio del grupo bajaría a **{form_sim:.1%}**.
+                - **Recomendación:** Aplicar en perfiles "Potencial Crecimiento" o con bajo "Desempeño".
+                ---
+                #### Análisis del Escenario: Mejora Salarial
+                - **Resultado:** Con una reducción de riesgo del **{sal_impact}%**, el riesgo medio bajaría a **{sal_sim:.1%}**.
+                - **Recomendación:** Aplicar en perfiles "Alto Desempeño" en riesgo o para corregir inequidades.
+                ---
+                #### Análisis del Escenario: Política Combinada
+                - **Resultado:** Es la más efectiva, reduciendo el riesgo al **{both_sim:.1%}**.
+                - **Recomendación:** Usar para grupos críticos y valiosos, como los perfiles "En Riesgo" con buen desempeño.
+                """)
 
     # --- PESTAÑA 4: GLOSARIO Y METODOLOGÍA ---
     with tab4:
-        # ... (Contenido completo de la Pestaña 4)
         st.header("📚 Glosario y Metodología")
         st.subheader("Glosario de Términos Clave")
         st.markdown("""
         - **KPI (Key Performance Indicator):** Indicador Clave de Rendimiento. Son las métricas más importantes que resumen la situación general (ej. Riesgo Medio).
-        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa, calculado por el modelo de IA.
+        - **Probabilidad de Abandono:** Porcentaje que indica la probabilidad de que un empleado deje la empresa.
         - **Perfil de Empleado (Cluster):** Grupo de empleados con características similares. En este análisis se identifican 4 perfiles principales:
             - `Alto Desempeño:` Empleados con buen rendimiento, pero que pueden estar en riesgo si no se sienten valorados o retados.
             - `Potencial Crecimiento:` Empleados leales y con buen clima, pero quizás con un desempeño que se puede potenciar.
@@ -291,7 +415,7 @@ try:
         st.markdown("""
         1.  **Preparación de Datos:** Se transforman las variables categóricas (como Departamento) en un formato numérico que el modelo pueda entender (`One-Hot Encoding`).
         2.  **Escalado de Características:** Se aplica `StandardScaler` para que todas las variables tengan una importancia equitativa en los cálculos iniciales del modelo. Esto es crucial para algoritmos como K-Means.
-        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad, lo que permite realizar el análisis de impulsores y XAI.
+        3.  **Modelo Predictivo:** Se utiliza un modelo de **Regresión Logística**, elegido por su robustez, rapidez y alta interpretabilidad.
         4.  **Modelo de Segmentación:** Se usa un algoritmo de **K-Means Clustering** para agrupar a los empleados en 4 perfiles distintos sin supervisión previa.
         """)
 
