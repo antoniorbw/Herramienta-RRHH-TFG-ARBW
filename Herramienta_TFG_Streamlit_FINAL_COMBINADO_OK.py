@@ -1,3 +1,4 @@
+
 # ==========================================
 # Librerías y Configuración Inicial
 # ==========================================
@@ -114,8 +115,6 @@ try:
     if error_message:
         st.error(f"❌ {error_message}"); st.stop()
 
-    st.success(f"✅ Archivo **{uploaded_file.name}** procesado. Se han analizado **{len(df_sim)}** empleados.")
-
     # --- Filtros ---
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Filtros del Informe")
@@ -161,18 +160,17 @@ try:
                 st.subheader("Distribución del Riesgo de Abandono")
                 fig, ax = plt.subplots(); sns.histplot(df_filtered['Prob_Abandono'], bins=15, kde=True, ax=ax, color="skyblue"); ax.set_xlabel("Probabilidad de Abandono"); ax.set_ylabel("Nº de Empleados"); st.pyplot(fig)
                 with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** La distribución de la plantilla según su probabilidad de abandono.")
-                    st.markdown("**¿Qué está pasando en tus datos?:**")
                     mean_risk = df_filtered['Prob_Abandono'].mean()
                     if mean_risk > 0.6:
-                        st.error(f"El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
+                        st.error(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que indica una situación preocupante.")
                     else:
-                        st.success(f"El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
-                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda.")
+                        st.success(f"**Análisis:** El riesgo medio del grupo es de **{mean_risk:.1%}**, lo que sugiere una situación mayormente controlada.")
+                    st.markdown("**Recomendaciones:** Si hay un pico significativo en la zona de riesgo alto (>70%), es una señal de alerta que requiere una investigación profunda de las causas a nivel organizacional.")
 
             with col2:
                 st.subheader("Top 5 Empleados con Mayor Riesgo")
-                for i, (index, row) in enumerate(df_filtered.nlargest(5, 'Prob_Abandono').iterrows(), 1):
+                top_5_risk = df_filtered.nlargest(5, 'Prob_Abandono')
+                for i, (index, row) in enumerate(top_5_risk.iterrows(), 1):
                     riesgo_color = "red" if row.get('Prob_Abandono', 0) >= 0.75 else "orange"
                     st.markdown(f"""
                     <div style="border-left: 5px solid {riesgo_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px; background-color: #f8f9fa;">
@@ -187,8 +185,7 @@ try:
             fig, ax = plt.subplots(figsize=(10, 6)); ax.barh(importances['Attribute'], importances['Importance'], color='skyblue'); ax.set_title('Top 10 Factores que más influyen en la Predicción'); st.pyplot(fig)
             with st.expander("Ver Análisis Detallado"):
                 top_feature = importances.iloc[-1]['Attribute'].replace('_', ' ')
-                st.markdown("**¿Qué estamos viendo?:** Los factores que el modelo de IA considera más importantes para predecir el abandono.")
-                st.markdown("**¿Qué está pasando en tus datos?:** El factor más determinante para predecir el abandono en tu empresa es **'{}'**.".format(top_feature))
+                st.info(f"**Análisis:** El factor más determinante para predecir el abandono en tu empresa es **'{top_feature}'**.")
                 st.markdown("**Recomendaciones:** Diseñar estrategias corporativas que ataquen los 2 o 3 impulsores principales.")
 
     # --- PESTAÑA 2: ANÁLISIS POR SEGMENTOS ---
@@ -223,23 +220,9 @@ try:
             with col1:
                 st.markdown("##### Clima Laboral Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values().plot(kind='barh', ax=ax, color='c'); st.pyplot(fig)
-                # EXPLICACIÓN RESTAURADA Y MEJORADA
-                with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según la puntuación media de clima laboral.")
-                    if len(df_filtered['Departamento'].unique()) > 1:
-                        clima_stats = df_filtered.groupby('Departamento')['Clima_Laboral'].mean().sort_values()
-                        st.markdown("**¿Qué está pasando en tus datos?:** El departamento con peor clima es **'{}'** ({:.2f}/5), mientras que el mejor es **'{}'** ({:.2f}/5).".format(clima_stats.index[0], clima_stats.iloc[0], clima_stats.index[-1], clima_stats.iloc[-1]))
-                    st.markdown("**Recomendaciones:** En departamentos con bajo clima, es crucial realizar encuestas de pulso o 'focus groups' para entender las causas (mala gestión, sobrecarga, etc.) y actuar sobre ellas.")
             with col2:
                 st.markdown("##### Riesgo de Abandono Medio")
                 fig, ax = plt.subplots(); df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values().plot(kind='barh', ax=ax, color='salmon'); st.pyplot(fig)
-                # EXPLICACIÓN RESTAURADA Y MEJORADA
-                with st.expander("Ver Análisis Detallado"):
-                    st.markdown("**¿Qué estamos viendo?:** El ranking de departamentos según el riesgo medio de abandono.")
-                    if len(df_filtered['Departamento'].unique()) > 1:
-                        risk_stats = df_filtered.groupby('Departamento')['Prob_Abandono'].mean().sort_values()
-                        st.markdown("**¿Qué está pasando en tus datos?:** El departamento con mayor riesgo es **'{}'** ({:.1%}), lo que lo convierte en el foco principal de las estrategias de retención.".format(risk_stats.index[-1], risk_stats.iloc[-1]))
-                    st.markdown("**Recomendaciones:** Priorizar las políticas de retención en los departamentos con mayor riesgo. Analizar si el tipo de rol o la gestión departamental son factores determinantes.")
 
     # --- PESTAÑA 3: CONSULTA Y SIMULACIÓN ---
     with tab3:
@@ -327,4 +310,4 @@ try:
 
 except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
-    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias. Puedes descargar la plantilla de ejemplo desde la barra lateral.")
+    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias.")
