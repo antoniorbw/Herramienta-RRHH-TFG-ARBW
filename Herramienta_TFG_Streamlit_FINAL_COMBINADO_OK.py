@@ -35,9 +35,9 @@ st.markdown("""
 # ==========================================
 st.sidebar.title("⚙️ Panel de Control")
 
-# --- Descarga de plantilla CSV ---
+# --- Descarga de plantilla EXCEL ---
 @st.cache_data
-def create_template_csv():
+def create_template_excel():
     template_data = {
         'Edad': [35, 42, 28, 50, 31, 25, 38, 45, 29, 33], 'Antigüedad': [5, 10, 2, 20, 3, 1, 8, 15, 4, 6],
         'Desempeño': [3, 4, 5, 4, 2, 4, 3, 5, 2, 4], 'Salario': [35000, 55000, 60000, 75000, 32000, 40000, 48000, 85000, 33000, 45000],
@@ -48,17 +48,23 @@ def create_template_csv():
         'Tipo_Contrato': ['Indefinido', 'Indefinido', 'Temporal', 'Indefinido', 'Temporal', 'Indefinido', 'Indefinido', 'Indefinido', 'Temporal', 'Indefinido']
     }
     df_template = pd.DataFrame(template_data)
-    return df_template.to_csv(index=False, sep=';').encode('utf-8')
+    
+    # Escribir a un buffer de memoria en formato Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_template.to_excel(writer, index=False, sheet_name='Datos')
+    processed_data = output.getvalue()
+    return processed_data
 
 st.sidebar.download_button(
-    label="📥 Descargar plantilla de ejemplo",
-    data=create_template_csv(),
-    file_name='plantilla_datos_empleados.csv',
-    mime='text/csv',
+    label="📥 Descargar plantilla de ejemplo (Excel)",
+    data=create_template_excel(),
+    file_name='plantilla_datos_empleados.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 )
 
 # --- Carga de datos ---
-uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo CSV aquí", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo Excel aquí", type=["xlsx"])
 
 # ==========================================
 # Procesamiento Central de Datos
@@ -120,15 +126,15 @@ if uploaded_file is None:
         Esta aplicación te permite analizar los datos de tus empleados para obtener información valiosa y tomar decisiones estratégicas basadas en datos.
 
         #### ¿Cómo empezar?
-        1.  **Descarga la plantilla (opcional):** En la **barra lateral de la izquierda**, encontrarás un botón para descargar un archivo CSV de ejemplo. Úsalo como guía para formatear tus propios datos.
-        2.  **Sube tu archivo:** Usa el botón "Sube tu archivo CSV aquí" en la misma barra lateral para cargar los datos de tu plantilla.
+        1.  **Descarga la plantilla (opcional):** En la **barra lateral de la izquierda**, encontrarás un botón para descargar un archivo Excel de ejemplo. Úsalo como guía para formatear tus propios datos.
+        2.  **Sube tu archivo:** Usa el botón "Sube tu archivo Excel aquí" en la misma barra lateral para cargar los datos de tu plantilla.
         3.  **Explora los resultados:** Una vez cargado el archivo, la aplicación generará automáticamente un análisis completo distribuido en las siguientes pestañas.
         """)
-    st.warning("Por favor, sube un archivo CSV desde la barra lateral para comenzar el análisis.")
+    st.warning("Por favor, sube un archivo Excel desde la barra lateral para comenzar el análisis.")
     st.stop()
 
 try:
-    df_original = pd.read_csv(uploaded_file, sep=";")
+    df_original = pd.read_excel(uploaded_file)
     df_sim, error_message, model, X_train_df, X_scaled_full = process_data(df_original.copy())
 
     if error_message:
@@ -444,4 +450,4 @@ try:
 
 except Exception as e:
     st.error(f"Se ha producido un error inesperado durante la ejecución: {e}")
-    st.warning("Por favor, comprueba que el archivo CSV tiene el formato correcto (separado por ';') y contiene todas las columnas necesarias.")
+    st.warning("Por favor, comprueba que el archivo Excel tiene el formato correcto y contiene todas las columnas necesarias.")
