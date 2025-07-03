@@ -49,7 +49,6 @@ def create_template_excel():
     }
     df_template = pd.DataFrame(template_data)
     
-    # Escribir a un buffer de memoria en formato Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df_template.to_excel(writer, index=False, sheet_name='Datos')
@@ -62,6 +61,21 @@ st.sidebar.download_button(
     file_name='plantilla_datos_empleados.xlsx',
     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 )
+
+# --- Descarga del Manual de Usuario PDF ---
+try:
+    with open("Manual de Usuario - Aplicación IA Plantilla.pdf", "rb") as pdf_file:
+        PDFbyte = pdf_file.read()
+
+    st.sidebar.download_button(
+        label="📄 Descargar Manual de Usuario (PDF)",
+        data=PDFbyte,
+        file_name="Manual de Usuario - Aplicacion IA Plantilla.pdf",
+        mime='application/octet-stream'
+    )
+except FileNotFoundError:
+    st.sidebar.warning("El archivo del manual de usuario no se encuentra. Por favor, asegúrate de que esté subido al repositorio.")
+
 
 # --- Carga de datos ---
 uploaded_file = st.sidebar.file_uploader("📤 Sube tu archivo Excel aquí", type=["xlsx"])
@@ -126,7 +140,7 @@ if uploaded_file is None:
         Esta aplicación te permite analizar los datos de tus empleados para obtener información valiosa y tomar decisiones estratégicas basadas en datos.
 
         #### ¿Cómo empezar?
-        1.  **Descarga la plantilla (opcional):** En la **barra lateral de la izquierda**, encontrarás un botón para descargar un archivo Excel de ejemplo. Úsalo como guía para formatear tus propios datos.
+        1.  **Descarga la plantilla y el manual:** En la **barra lateral de la izquierda**, encontrarás botones para descargar un archivo Excel de ejemplo y el manual de usuario.
         2.  **Sube tu archivo:** Usa el botón "Sube tu archivo Excel aquí" en la misma barra lateral para cargar los datos de tu plantilla.
         3.  **Explora los resultados:** Una vez cargado el archivo, la aplicación generará automáticamente un análisis completo distribuido en las siguientes pestañas.
         """)
