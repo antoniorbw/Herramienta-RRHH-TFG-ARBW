@@ -19,6 +19,17 @@ import io
 # --- Configuración de la página de Streamlit ---
 st.set_page_config(page_title="Herramienta IA Estratégica - RRHH", layout="wide")
 
+# --- CSS Personalizado para Aumentar Tamaño de Pestañas ---
+st.markdown("""
+<style>
+    /* Estilo para los botones de las pestañas */
+    button[data-baseweb="tab"] {
+        font-size: 18px; /* Aumenta el tamaño de la fuente */
+        padding: 10px 15px; /* Aumenta el espaciado interno del botón */
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ==========================================
 # Barra Lateral (Sidebar)
 # ==========================================
