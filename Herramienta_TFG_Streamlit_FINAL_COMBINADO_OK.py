@@ -63,18 +63,21 @@ st.sidebar.download_button(
 )
 
 # --- Descarga del Manual de Usuario PDF ---
+# NOTA: Asegúrate de que tu archivo PDF se llame exactamente 'manual_usuario.pdf' en GitHub.
+MANUAL_FILENAME = "manual_usuario.pdf"
 try:
-    with open("Manual de Usuario - Aplicación IA Plantilla.pdf", "rb") as pdf_file:
+    with open(MANUAL_FILENAME, "rb") as pdf_file:
         PDFbyte = pdf_file.read()
 
     st.sidebar.download_button(
         label="📄 Descargar Manual de Usuario (PDF)",
         data=PDFbyte,
-        file_name="Manual de Usuario - Aplicacion IA Plantilla.pdf",
+        file_name=MANUAL_FILENAME,
         mime='application/octet-stream'
     )
 except FileNotFoundError:
-    st.sidebar.warning("El archivo del manual de usuario no se encuentra. Por favor, asegúrate de que esté subido al repositorio.")
+    st.sidebar.error(f"Error: No se encuentra el manual '{MANUAL_FILENAME}'.")
+    st.sidebar.warning("Asegúrate de que el archivo PDF esté subido a GitHub y que el nombre coincida exactamente (sin espacios ni tildes).")
 
 
 # --- Carga de datos ---
