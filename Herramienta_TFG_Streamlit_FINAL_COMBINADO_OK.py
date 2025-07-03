@@ -276,6 +276,12 @@ try:
                 4.  **Simulación de Políticas**: Antes de implementar cambios a gran escala (ej. aumentos salariales), utilice la pestaña `Consulta y Simulación` para modelar su impacto en la probabilidad de abandono de los empleados clave. Esto permite optimizar la inversión en retención.
                 """
                 st.markdown(summary_text)
+                st.download_button(
+                    label="📥 Exportar Resumen a .txt",
+                    data=summary_text.encode('utf-8'),
+                    file_name=f"resumen_ejecutivo_{datetime.now().strftime('%Y%m%d')}.txt",
+                    mime="text/plain"
+                )
             else:
                 st.warning("No hay datos suficientes para generar el resumen ejecutivo.")
     
